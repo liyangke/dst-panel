@@ -6,6 +6,7 @@
 - 前端：免构建 Vue 3（vendor 里的 global 构建）+ 手写 CSS，静态资源 `go:embed` 进二进制
 - 进程：靠 `screen` 会话启停 DST 分片，面板重启不影响已经开着的服
 - 数据通道：自写助手 MOD 读写 `save/` 下的 JSON 文件，回传在线玩家、世界状态，按需导出地形与建筑/资源底图
+- 源码：<https://github.com/liyangke/dst-panel>（`main` 分支；本地快照、构建产物与截图不入库）
 
 ## 功能
 
@@ -100,6 +101,8 @@ internal/store/      SQLite 存储
 internal/webui/      内嵌前端资源
 deploy/              systemd 单元与安装脚本
 docs/                学习指南
+.tools/              UI 验收、云机复验与探针脚本（开发用，不进二进制）
+.retired/            退役代码归档，保留当年取舍的原文
 ```
 
 ## 快速开始（开发机）
