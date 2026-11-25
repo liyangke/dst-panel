@@ -1,0 +1,2428 @@
+/*
+  面板界面样式：手写，不引框架。
+
+  三条贯穿全文件的约定：
+  1. 颜色只从 --变量 取。深浅两套主题各自覆盖一遍变量表（见 :root[data-theme]），
+     组件里不出现任何写死的颜色，否则加一套主题就要把每个组件重看一遍。
+  2. 尺寸按"最窄那一屏"排。日志行、任务消息、模组说明都是长文本，
+     它们在 360px 宽下必须能换行而不把布局顶开；所以横向滚动只给表格这种
+     明确"内容比屏幕宽"的块，其余一律换行。
+  3. 状态用"形状 + 颜色 + 文字"三样一起表达。色盲或截图发灰时颜色会失效，
+     而面板里最要紧的信息就是"这个分片到底在不在跑"。
+*/
+
+/* ---- 设计令牌 ----
+   颜色只有这两张表，组件一律取 --变量（见文件开头第 1 条约定）。
+
+   这一版多了一整层"色相盘"：全局主色仍然只有一个 --accent，但每个页面再带一个
+   --page-accent（shell.js 换页时写到 documentElement 的 style 上），于是同一套卡片、按钮、统计块
+   在模组页偏紫、在世界地图页偏青。色彩靠页面分区铺开，而不是在一张卡里堆六七个颜色
+   ——后者只会显得廉价，前者才有"每个功能区有自己的身份"的感觉。
+
+   盘里 13 个色的饱和度和明度刻意保持同一档：换页时"气质"不变，只有色相在变。
+   语义色（--ok/--warn/--bad）不跟着页面变，否则"在跑"在某一页会变成橙色，
+   而颜色正是它唯一的含义。 */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+             "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Consolas,
+               "Courier New", monospace;
+
+  /* 色相盘 */
+  --h-azure: #5b9cff;
+  --h-periwinkle: #8b9bff;
+  --h-cyan: #4fd3ff;
+  --h-teal: #2fd3bd;
+  --h-green: #45d490;
+  --h-lime: #a3e061;
+  --h-gold: #f0cf5e;
+  --h-amber: #ffb15c;
+  --h-coral: #ff8f6b;
+  --h-rose: #ff7a92;
+  --h-magenta: #ee80d2;
+  --h-violet: #a98bff;
+  --h-slate: #8fa6c8;
+
+  /* 圆角：从小到大五档，卡片用 --r-md，浮层用 --r-lg，胶囊一律 999px */
+  --r-xs: 4px;
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  /* 间距与字号都走梯度，不再随手写 13px/17px：
+     一个页面上有七八个"顺手写的字号"时，整体看着就是乱的。 */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 22px;
+  --s-6: 30px;
+  /* 次要文字最小 12px：原来 11.5px 在浅色白卡上既偏小又压着对比度的线，统一抬到 12px；
+     12.5px 这一档留给日志表、紧凑 KV 这类确实要省行的地方。 */
+  --t-xs: 12px;
+  --t-sm: 12.5px;
+  --t-md: 13.5px;
+  --t-lg: 15.5px;
+  --t-xl: 19px;
+  --t-2xl: 25px;
+
+  --gap: 14px;
+  --nav-w: 232px;
+  --speed: .16s;
+  --page-accent: var(--accent);
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #090c12;
+  --bg-grad:
+    radial-gradient(1200px 620px at 6% -14%, rgba(91, 156, 255, .13), transparent 62%),
+    radial-gradient(900px 520px at 98% -8%, rgba(169, 139, 255, .10), transparent 60%),
+    radial-gradient(1100px 640px at 50% 118%, rgba(47, 211, 189, .07), transparent 62%);
+  --elev: #0e131b;
+  --card: #131923;
+  --card-2: #1a2230;
+  --line: #26303f;
+  --line-soft: #1c2430;
+  --text: #eaf0f8;
+  --text-2: #a3b0c2;
+  --text-3: #77859a;
+  --accent: var(--h-azure);
+  --accent-soft: rgba(91, 156, 255, .16);
+  --ok: #45d490;
+  --ok-soft: rgba(69, 212, 144, .14);
+  --warn: #ffb15c;
+  --warn-soft: rgba(255, 177, 92, .14);
+  --bad: #ff7a8a;
+  --bad-soft: rgba(255, 122, 138, .14);
+  --idle: #77859a;
+  --idle-soft: rgba(119, 133, 154, .16);
+  --info: var(--h-cyan);
+  --info-soft: rgba(79, 211, 255, .13);
+  /* 地图上的"伙伴随从"一类。画布和图例必须取同一个值：
+     两边各写一份 hex 的话，改了一边就是图上一种颜色、图例另一种颜色。 */
+  --map-companion: #f472b6;
+  --map-companion-soft: rgba(244, 114, 182, .15);
+  --mask: rgba(5, 8, 13, .72);
+  /* 玻璃面的一丝上沿高光：深色底上"边"不够，得有一条比底色亮的 1px 才像被光照到 */
+  --hair: rgba(255, 255, 255, .055);
+  --sh-1: 0 1px 1px rgba(0, 0, 0, .3), 0 2px 6px -3px rgba(0, 0, 0, .5);
+  --sh-2: 0 10px 30px -12px rgba(0, 0, 0, .66), 0 2px 6px -2px rgba(0, 0, 0, .4);
+  --sh-3: 0 28px 70px -20px rgba(0, 0, 0, .74), 0 6px 18px -8px rgba(0, 0, 0, .5);
+  --shadow: var(--sh-2);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f2f5fb;
+  --bg-grad:
+    radial-gradient(1100px 560px at 6% -14%, rgba(59, 116, 232, .11), transparent 62%),
+    radial-gradient(900px 500px at 98% -8%, rgba(150, 120, 240, .09), transparent 60%);
+  --elev: #ffffff;
+  --card: #ffffff;
+  --card-2: #f3f6fb;
+  --line: #dbe2ee;
+  --line-soft: #e8edf5;
+  /* 三级文字色按 WCAG 4.5:1 压深过一遍：#77859a 对白卡只有 3.75、对页面底 3.43。
+     --text-3 改 #5c6b82（白卡 5.41 / 页面底 4.96 / card-2 5.00），
+     表头、侧栏分组标题、.muted 这些派生用色都取它，一并达标；
+     --idle 单独再深一档到 #52607a：.badge.idle 是"灰字压灰软底"，
+     用同一个 5c6b82 在 card-2 上只有 4.28，压到 52607a 才有 4.97。
+     --idle-soft 的色相跟着换成新 RGB，免得药丸底和字色是两种灰。
+     深色那套仍是 #77859a，实测在 card/bg 上是 4.71/5.22，不动它。 */
+  --text: #16202f;
+  --text-2: #4d5b73;
+  --text-3: #5c6b82;
+  --accent: #3b74e8;
+  --accent-soft: rgba(59, 116, 232, .10);
+  --ok: #0e9f61;
+  --ok-soft: rgba(14, 159, 97, .10);
+  --warn: #b8730d;
+  --warn-soft: rgba(184, 115, 13, .12);
+  --bad: #d6414a;
+  --bad-soft: rgba(214, 65, 74, .10);
+  --idle: #52607a;
+  --idle-soft: rgba(82, 96, 122, .12);
+  --info: #1b86c8;
+  --info-soft: rgba(27, 134, 200, .10);
+  --map-companion: #be1877;
+  --map-companion-soft: rgba(190, 24, 119, .10);
+  --mask: rgba(22, 32, 47, .34);
+  --hair: rgba(22, 32, 47, .05);
+  --sh-1: 0 1px 2px rgba(22, 32, 47, .07), 0 2px 6px -3px rgba(22, 32, 47, .08);
+  --sh-2: 0 10px 28px -14px rgba(22, 32, 47, .22), 0 2px 6px -2px rgba(22, 32, 47, .07);
+  --sh-3: 0 28px 64px -24px rgba(22, 32, 47, .3), 0 6px 16px -8px rgba(22, 32, 47, .12);
+  --shadow: var(--sh-2);
+
+  /* 浅底上原先那批亮色太淡（淡紫、淡青几乎和卡片一个明度），
+     整盘压深一档，色相不变——不然"色彩丰富"在白底上会变成"色彩发灰"。 */
+  --h-azure: #2f6fe4;
+  --h-periwinkle: #5a63e0;
+  --h-cyan: #1294c4;
+  --h-teal: #0f9e8c;
+  --h-green: #0e9f61;
+  --h-lime: #6f9c1f;
+  --h-gold: #a97d10;
+  --h-amber: #b8730d;
+  --h-coral: #d2603a;
+  --h-rose: #cf4468;
+  --h-magenta: #b7469a;
+  --h-violet: #7a52d6;
+  --h-slate: #5f7392;
+}
+
+/* 这一页用哪个色相，只有一个来源：js/nav.js 每条上的 hue 字段。
+   shell.js 换页时把它写成 documentElement 上的 --page-accent，
+   于是顶栏图标块、卡片左沿、按钮高亮、底部导航选中态全都跟着同一格走。
+   这里不再另写一张 data-page 映射表：两处记同一件事，迟早会有一处忘了改。 */
+
+/* ---- 基础 ---- */
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  /* 页面主色整屏只留这一层 11% 底光，且是背景不是卡片：--page-accent 由 shell.js
+     换页时写到 documentElement 上，切到模组页整屏偏紫、切到地图页偏青。
+     收敛之后它只用于这里、导航选中态和几处小面积高亮（下划线、图标、细边、页码），
+     卡片一律中性底，不再拿页面色相去铺统计块 / 事实条。 */
+  background:
+    radial-gradient(760px 420px at 84% 0%,
+      color-mix(in srgb, var(--page-accent) 11%, transparent), transparent 68%),
+    var(--bg-grad), var(--bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--speed);
+}
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.3; }
+h1 { font-size: 19px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+p { margin: 0 0 10px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .mono { font-family: var(--font-mono); font-size: 12.5px; }
+code { background: var(--card-2); border: 1px solid var(--line-soft);
+       border-radius: 4px; padding: 1px 5px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 键盘焦点：2px 实线 + 2px 偏移，颜色走 --accent，深浅两套主题都看得见。
+   只认 :focus-visible —— 鼠标点按钮不画框，Tab 过去才画，鼠标观感不受影响。
+   显式把全站能聚焦的控件列一遍，免得某个组件自己写 outline:none 把焦点压掉。 */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+button:focus-visible, .btn:focus-visible, .linkish:focus-visible,
+.icon-btn:focus-visible, .theme-switch button:focus-visible,
+.nav-item:focus-visible, .tab:focus-visible, .sheet-item:focus-visible,
+.tip-btn:focus-visible, .op:focus-visible, .fchip:focus-visible,
+.pg-btn:focus-visible, .pg-num:focus-visible, .seg button:focus-visible,
+.tabs button:focus-visible, .stepper .stp:focus-visible,
+.chipbtn:focus-visible, .mod-cat:focus-visible, .room-name:focus-visible,
+.drop:focus-visible, .login-eye:focus-visible, summary:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+/* 开关的原生 input 被藏成 0×0，焦点框画在它身上等于没有：借 :has() 把环挪到轨道上。 */
+.switch:has(input:focus-visible) .track { box-shadow: 0 0 0 2px var(--accent); }
+
+.muted { color: var(--text-2); }
+.dim { color: var(--text-3); }
+.strong { color: var(--text); font-weight: 600; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+.pre-line { white-space: pre-line; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.center { text-align: center; }
+.right { text-align: right; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row-tight { flex-wrap: nowrap; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.spread { justify-content: space-between; }
+.gap-lg { gap: 20px; }
+.mt-0 { margin-top: 0; }
+.mt { margin-top: 12px; }
+.mt-lg { margin-top: 20px; }
+.mb { margin-bottom: 12px; }
+.hide { display: none !important; }
+
+/* ---- 图标 ----
+   整站的图标都是自己画的 SVG 线稿（js/icons.js），只有 path 的 d 字符串，
+   所以尺寸、粗细、颜色全在这里统一改：描边取 currentColor，图标跟着文字色走，
+   深浅两套主题都不用各画一遍。vertical-align 用负值而不是 1ex，是因为
+   中文字的基线和西文数字不一样，-3px 实测在 13.5px 正文上最齐。 */
+.ic { width: 18px; height: 18px; display: inline-block; flex: 0 0 auto;
+      vertical-align: -3px; fill: none; stroke: currentColor;
+      stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ic-xs { width: 14px; height: 14px; vertical-align: -2px; }
+.ic-lg { width: 22px; height: 22px; }
+
+/* 图标底：导航、统计块、登录页要点缀色时用它，一个色块加一枚图标，
+   比只有一根线更容易被扫视找到。 */
+.ico-tile { width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto;
+            display: grid; place-items: center;
+            color: var(--tile, var(--page-accent));
+            background: color-mix(in srgb, var(--tile, var(--page-accent)) 14%, transparent);
+            border: 1px solid color-mix(in srgb, var(--tile, var(--page-accent)) 26%, transparent); }
+.ico-tile.sm { width: 24px; height: 24px; border-radius: 7px; }
+.ico-tile.lg { width: 42px; height: 42px; border-radius: 13px; }
+
+/* 色板挂到元素上：--tile / --tint 只用来点一小块（左沿细边、图标），不碰 --page-accent，
+   更不拿来铺整张卡底——同页八张小卡各一种渐变底，颜色会杂成一堵花墙。
+   --tile 是历史名，ico-tile、fact 图标、details 分组都还在用，一并保留；
+   --tint 是收敛后统一给"那一抹色"取的新名，两者同值，深浅主题各取自己的色相盘。
+   类名全部保留兼容，JS 照旧挂，不用改。 */
+.tint-azure { --tile: var(--h-azure); --tint: var(--h-azure); }
+.tint-cyan { --tile: var(--h-cyan); --tint: var(--h-cyan); }
+.tint-teal { --tile: var(--h-teal); --tint: var(--h-teal); }
+.tint-green { --tile: var(--h-green); --tint: var(--h-green); }
+.tint-gold { --tile: var(--h-gold); --tint: var(--h-gold); }
+.tint-amber { --tile: var(--h-amber); --tint: var(--h-amber); }
+.tint-coral { --tile: var(--h-coral); --tint: var(--h-coral); }
+.tint-rose { --tile: var(--h-rose); --tint: var(--h-rose); }
+.tint-violet { --tile: var(--h-violet); --tint: var(--h-violet); }
+.tint-slate { --tile: var(--h-slate); --tint: var(--h-slate); }
+/* 语义那一档：状态色不跟着页面跑，"在跑"在哪一页都得是绿的。 */
+.tint-ok { --tile: var(--ok); --tint: var(--ok); }
+.tint-warn { --tile: var(--warn); --tint: var(--warn); }
+.tint-bad { --tile: var(--bad); --tint: var(--bad); }
+
+/* ---- 按需提示 ----
+   PC 上悬浮或键盘聚焦才展开，触屏上点一下展开。它是"整段说明"的去处：
+   一行小字常驻的话，每页都会多出一屏解释（这一版就是要把它压掉）。
+   文案仍然在 DOM 里，只是不铺开，所以读屏和 Ctrl+F 都还能找到它。
+   气泡是 fixed 定位、由 js 算好左右边界，所以贴着屏幕右边的提示
+   也不会把页面撑出横向滚动条。 */
+.tip { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+.tip-btn { border: 0; background: none; color: var(--text-3); padding: 3px; margin: 0;
+           min-width: 24px; min-height: 24px; align-items: center; justify-content: center;
+           border-radius: 999px; cursor: pointer; display: inline-flex; line-height: 0; }
+.tip-btn:hover { color: var(--accent); background: var(--accent-soft); }
+.tip.open .tip-btn { color: var(--accent); background: var(--accent-soft); }
+/* 带字的那一枚：一个孤零零的"?"在手机上等于没说，所以给一句短标签当把手，
+   展开的那段长文才收进气泡里。标签本身就是"这里能点"的提示。 */
+.tip-btn.labeled { border: 1px solid var(--line-soft); padding: 3px 9px; gap: 5px;
+                   font: inherit; font-size: var(--t-xs); line-height: 1.4; }
+.tip-btn.labeled:hover, .tip.open .tip-btn.labeled { border-color: var(--accent); }
+/* 同一枚把手也能表示"这里有问题"，而不只是"这里有解释"：语气跟着 badge/chip 那套
+   语义色走。含义仍然写在标签文字里，不单靠颜色区分（见顶部第 3 条约定）。 */
+.tip-btn.warn { color: var(--warn); background: var(--warn-soft); }
+.tip-btn.bad { color: var(--bad); background: var(--bad-soft); }
+.tip-btn.warn:hover, .tip.open .tip-btn.warn { color: var(--warn); background: var(--warn-soft); }
+.tip-btn.bad:hover, .tip.open .tip-btn.bad { color: var(--bad); background: var(--bad-soft); }
+.tip-btn.labeled.warn { border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.tip-btn.labeled.bad { border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+.tip-bub { position: fixed; z-index: 190; padding: 9px 11px; border-radius: var(--r-sm);
+           background: var(--elev); color: var(--text); border: 1px solid var(--line);
+           box-shadow: var(--sh-3); font-size: var(--t-sm); line-height: 1.55;
+           text-align: left; animation: tip-in var(--speed) ease-out; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* ---- 挂载前的骨架 ---- */
+.boot { max-width: 1080px; margin: 12vh auto 0; padding: 0 20px; }
+.boot-bar { display: flex; align-items: center; gap: 10px; font-size: 17px;
+            font-weight: 600; margin-bottom: 18px; }
+.boot-dot { width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent); animation: pulse 1.1s infinite; }
+.boot-line { height: 12px; border-radius: 6px; margin-bottom: 12px;
+             background: linear-gradient(90deg, var(--card) 0%, var(--card-2) 50%, var(--card) 100%);
+             background-size: 220% 100%; animation: shimmer 1.3s infinite; }
+.boot-note { margin-top: 18px; color: var(--text-2); font-size: 13px; }
+.noscript { max-width: 720px; margin: 60px auto; padding: 18px;
+            border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card); }
+
+@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001s !important; transition-duration: .001s !important; }
+}
+
+/* ---- 外壳：左导航 + 顶栏 + 内容 ----
+   桌面端是"窄侧栏 + 宽内容"，手机端不折叠成横向滚动的标签带（上一版那样做，
+   十一个页面挤成一条要用手横着推的带子，既点不准也看不出自己在哪）：
+   手机上侧栏整个撤掉，换成底部的四个常用页 + 一个"更多"抽屉。 */
+.shell {
+  display: grid;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  grid-row: 1 / span 2;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--elev) 96%, var(--card)) 0%, var(--elev) 42%);
+  border-right: 1px solid var(--line);
+  padding: 16px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
+.brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 16px; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; flex: 0 0 auto;
+              background: conic-gradient(from 210deg, var(--h-amber), var(--h-rose),
+                                         var(--h-violet), var(--h-azure), var(--h-teal),
+                                         var(--h-green), var(--h-amber));
+              display: grid; place-items: center; color: #0b0f16;
+              box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--h-azure) 70%, transparent); }
+.brand-mark .ic { stroke-width: 2.1; }
+.brand-name { font-weight: 700; font-size: var(--t-md); letter-spacing: .2px; }
+.brand-sub { font-size: var(--t-xs); color: var(--text-3); }
+.brand-text { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+
+.nav-sep { display: flex; align-items: center; gap: 8px; margin: 12px 10px 4px;
+           font-size: var(--t-xs); color: var(--text-3); }
+/* 分组标题后面拖一条渐隐的线：让"开服 / 运营 / 数据 / 系统"这四段看得出边界，
+   又不必真的画一条硬线把侧栏切成四块。 */
+.nav-sep::after { content: ""; height: 1px; flex: 1 1 auto;
+                  background: linear-gradient(90deg, var(--line), transparent); }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 38px; padding: 8px 10px; border-radius: var(--r-sm);
+  color: var(--text-2); cursor: pointer; border: 1px solid transparent; background: none;
+  font: inherit; font-size: var(--t-md); text-align: left; width: 100%;
+  transition: background var(--speed), color var(--speed), border-color var(--speed);
+}
+/* 图标各自带一点本页的色相：整条导航就不会是一排灰线，
+   而文字仍是 --text-2，颜色只当"分区记号"，不会喧宾夺主。 */
+.nav-item .ic { color: color-mix(in srgb, var(--page-accent) 62%, var(--text-3)); }
+.nav-item:hover { background: var(--card-2); color: var(--text); text-decoration: none; }
+.nav-item.on { background: color-mix(in srgb, var(--page-accent) 15%, transparent);
+               border-color: color-mix(in srgb, var(--page-accent) 34%, transparent);
+               color: var(--text); font-weight: 600; }
+.nav-item.on .ic { color: var(--page-accent); }
+.nav-badge { margin-left: auto; font-size: 12px; min-width: 20px; text-align: center;
+             padding: 1px 7px; border-radius: 999px;
+             background: var(--card-2); color: var(--text-2); font-family: var(--font-mono); }
+.nav-badge.hot { background: color-mix(in srgb, var(--page-accent) 22%, transparent);
+                 color: var(--text); }
+
+.sidebar-foot { margin-top: auto; padding: 12px 8px 2px; border-top: 1px solid var(--line-soft);
+                font-size: var(--t-xs); color: var(--text-3); display: flex;
+                flex-direction: column; gap: 4px; }
+.sidebar-foot .sf-row { display: flex; align-items: center; gap: 7px; }
+
+.topbar {
+  grid-column: 2;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--elev) 82%, transparent);
+  backdrop-filter: blur(10px) saturate(1.2);
+  position: sticky; top: 0; z-index: 40;
+}
+.topbar-id { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.topbar-titles { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 面包屑：导航分了四组，标题前标出组名比让人回侧栏找更省事。 */
+.crumb { font-size: var(--t-sm); color: var(--text-3); white-space: nowrap; flex: none; }
+.topbar-title { font-size: var(--t-lg); font-weight: 650; letter-spacing: .2px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-ic { width: 18px; height: 18px; }
+
+.main { grid-column: 2; padding: 20px; min-width: 0; }
+
+/* 顶栏右侧的全局计数：几个在跑、几个助手掉线、几个任务没结束 */
+.gauges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.gauge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-xs);
+         padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
+         background: color-mix(in srgb, var(--card) 84%, transparent); color: var(--text-2); }
+.gauge .ic { opacity: .75; }
+.gauge b { color: var(--text); font-family: var(--font-mono); font-weight: 600; }
+/* 仪表也可以是能点的：点"在跑 2/2"直接去服务器总览，比让人先想"这页在哪"快。 */
+button.gauge { font: inherit; cursor: pointer; }
+button.gauge:hover { border-color: var(--page-accent); color: var(--text); }
+.gauge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 38%, transparent);
+              background: var(--warn-soft); }
+
+/* 只有图标的顶栏控件：手机端那一排要缩成 4 枚 36px 的方块，
+   文字版按钮（立即同步 / 深色 / 退出）在 390px 上会占掉整整两行。 */
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            width: 34px; height: 34px; padding: 0; border-radius: var(--r-sm);
+            border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+            cursor: pointer; font: inherit;
+            transition: background var(--speed), color var(--speed), border-color var(--speed); }
+.icon-btn:hover { color: var(--text); background: var(--card-2); border-color: var(--text-3); }
+.icon-btn.on { color: var(--page-accent); border-color: color-mix(in srgb, var(--page-accent) 42%, transparent);
+               background: color-mix(in srgb, var(--page-accent) 14%, transparent); }
+.icon-btn.spinning .ic { animation: spin .9s linear infinite; }
+
+.theme-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px;
+                overflow: hidden; background: var(--card); }
+.theme-switch button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none;
+                       color: var(--text-2); font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer; }
+.theme-switch button.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+
+/* ---- 手机端底部导航 ----
+   四个高频页 + "更多"。手指能够得着的地方只留这一条，顶栏退成"标题 + 四枚控件"，
+   不再横向滚标签，也不再把仪表摊满一整行。
+   每个 tab 自己的色相在选中时才亮起来，未选中是灰线——一屏之内只该有一处彩色强调。 */
+.tabbar { display: none; }
+.sheet-mask { display: none; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { display: none; }
+  .main, .topbar { grid-column: 1; }
+  .main { padding: 14px 14px calc(84px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { padding: 10px 14px; gap: 8px; }
+  /* 标题不能被挤：手机端顶栏剩下的东西不多（见 560 那档把身份牌藏了），
+     而"总览"被省略成"总…"比右侧少一枚仪表严重得多。 */
+  .topbar-id { flex: 0 0 auto; }
+  /* 仪表条在手机上只留最要紧的两枚（在跑 / 未结束），其余进"更多"抽屉里也看得到。 */
+  .gauges { gap: 5px; }
+
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr);
+            position: fixed; inset: auto 0 0 0; z-index: 50;
+            background: color-mix(in srgb, var(--elev) 94%, transparent);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-top: 1px solid var(--line);
+            padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px)); }
+  .tab { display: flex; flex-direction: column; align-items: center; justify-content: center;
+         gap: 3px; border: 0; background: none; color: var(--text-3); font: inherit;
+         font-size: 12px; padding: 7px 2px 6px; min-height: 52px; cursor: pointer;
+         border-radius: var(--r-sm); }
+  .tab .ic { width: 21px; height: 21px; }
+  .tab.on { color: var(--text); background: color-mix(in srgb, var(--page-accent) 13%, transparent); }
+  .tab.on .ic { color: var(--page-accent); }
+  /* 计数挂在图标右上角而不是文字后面：底部那一排每格只有 60~70px，
+     跟在标签后面会把标签字挤成两行。抽屉里的格子用的是同一个类，所以这里不另起名字。 */
+  .tab, .sheet-item { position: relative; }
+  .tab-badge { position: absolute; top: 4px; left: 58%; min-width: 16px;
+               padding: 0 4px; height: 16px; display: inline-flex; align-items: center;
+               justify-content: center; border-radius: 999px; font-size: 12px;
+               font-family: var(--font-mono); background: var(--card-2); color: var(--text-2);
+               box-shadow: 0 0 0 2px var(--elev); }
+  .tab-badge.hot { background: color-mix(in srgb, var(--page-accent) 88%, transparent);
+                   color: #0b0f16; }
+
+  /* "更多"抽屉：剩下的页面在这里，一格一个，图标带本页色相。
+     用底部抽屉而不是再塞进那条带子：五个以上就得横滚，那就和上一版没区别了。 */
+  .sheet-mask { display: block; position: fixed; inset: 0; z-index: 60;
+                background: var(--mask); animation: fade var(--speed) ease-out; }
+  .sheet { position: fixed; inset: auto 0 0 0; z-index: 61;
+           background: var(--elev); border-top: 1px solid var(--line);
+           border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--sh-3);
+           padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+           animation: rise .18s ease-out; max-height: 74vh; overflow: auto; }
+  .sheet-grip { width: 38px; height: 4px; border-radius: 999px; background: var(--line);
+                margin: 2px auto 12px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                margin-bottom: 10px; }
+  .sheet-head h3 { font-size: var(--t-md); margin: 0; }
+  .sheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .sheet-item { display: flex; flex-direction: column; align-items: center; gap: 6px;
+                padding: 12px 6px; border-radius: var(--r-md); border: 1px solid var(--line-soft);
+                background: var(--card); color: var(--text-2); font: inherit; font-size: var(--t-xs);
+                cursor: pointer; text-align: center; min-height: 76px; }
+  .sheet-item .ic { color: color-mix(in srgb, var(--page-accent) 66%, var(--text-3)); }
+  .sheet-item.on { border-color: color-mix(in srgb, var(--page-accent) 44%, transparent);
+                   background: color-mix(in srgb, var(--page-accent) 13%, transparent); color: var(--text); }
+  .sheet-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px;
+                border-top: 1px solid var(--line-soft); padding-top: 12px; }
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 560px) {
+  .topbar-title { font-size: var(--t-lg); }
+  .main { padding: 12px 12px calc(84px + env(safe-area-inset-bottom, 0px)); }
+  /* 手机上顶栏只留"在跑"和"助手没回话"这两枚仪表：登录身份在抽屉底部写着整句，账号页也在抽屉里，
+     留在这里会把标题挤成省略号，而它谁都要看。
+     剩下这两枚不许换行——它们一换行，标题就被顶到第一行中间，整条顶栏变成两屏高。
+     标题这一组保持 flex: 0 0 auto：390 上「开服与世界」要是被压成「开…」，
+     比右侧少一枚仪表更难认。新加的「待办」入口在这一档收进抽屉（见文件末尾），
+     所以顶栏的宽度占用和这一轮改动之前完全一样。 */
+  .gauge.user { display: none; }
+  .gauges { flex-wrap: nowrap; }
+  /* 触摸目标：底部导航的五个格子本来就有 52px 高，这里补顶栏那几枚控件。 */
+  .icon-btn { width: 40px; height: 40px; }
+  .tab { min-height: 56px; }
+}
+
+/* ---- 卡片 / 区块 ----
+   卡片靠"一条上沿高光 + 一层很软的投影"和背景分开，而不是靠一圈 1px 灰边：
+   纯描边在深色底上会把整页切成一格一格的盒子，看着像表格而不像面板。 */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md);
+        padding: 14px; min-width: 0;
+        box-shadow: var(--sh-1), inset 0 1px 0 var(--hair);
+        container-type: inline-size; }
+.card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.card-head h2, .card-head h3 { margin: 0; }
+.card-head h2 { font-size: var(--t-lg); }
+.card-head h3 { font-size: var(--t-md); color: var(--text-2); }
+/* 卡片头那枚图标比正文图标小一档：它只是给这块区域一个记号，
+   和标题抢高度就变成装饰了。 */
+.card-head .ico-tile { width: 27px; height: 27px; border-radius: 8px; }
+.card-head .grow { min-width: 0; }
+.card-flush { padding: 0; overflow: hidden; }
+/* flush 卡（表格、日志框贴边的那种）里唯一该有内边距的是卡头：
+   标题和右边那排按钮不垫一下就贴着边框了，而正文那侧的留白由表格自己给。 */
+.card-flush > .card-head { padding: 11px 12px 0; margin-bottom: 9px; }
+.card-title-sm { font-size: 12px; color: var(--text-3); letter-spacing: .3px; }
+/* 带本页色相的一条顶边：给"这一页的主区"用，一页最多两三处，多了就又回到格子脸。 */
+.card.tinted { border-top-color: color-mix(in srgb, var(--page-accent) 40%, var(--line));
+               box-shadow: var(--sh-1), inset 0 1px 0 color-mix(in srgb, var(--page-accent) 22%, var(--hair)); }
+
+/* 空态卡按内容收缩：grid 默认 align-items:stretch，同一行只要有一张高卡，
+   只写着"暂无进行中的任务"的那张也会被拉到约 190px，内部空出一百多像素。
+   只认直系挂了 .empty 的卡，带列表/图表的卡不碰；.ov-behaviour 是 #124 刻意
+   要和左边房间卡齐高的那一列，单独留着 stretch。width:100% 是给 flex 列准备的：
+   那里 align-self:start 会连 cross axis 一起收窄，补回满宽才不和其它卡错开。 */
+.card:has(> .empty):not(.ov-behaviour) { align-self: start; width: 100%; min-height: 0; }
+
+.grid { display: grid; gap: var(--gap); }
+.grid-cards { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); }
+.grid-wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+/* 分组标题横跨两列时才是"这一屏的第二区"，而不是左列的私有标题；
+   它留在左列里会把左列首卡推下去 43px，右列首卡的顶边就对不齐了。 */
+.grid-wide > .section-title { grid-column: 1 / -1; }
+/* 「玩家在线时间」那条泳道在 #125 搬去了「玩家管理」，这一列下面不再有横跨整幅的卡，
+   所以这里没有 .tl-wide 那条 grid-column 规则（原来有，搬走之后它一个使用者都不剩）。 */
+/* 右列跟着这一行的行高走（2026-11-06 #124 用户："我感觉你没有和左边的房间对齐"）。
+   #123 撤掉的从来不是"齐高"，而是"拉长上面那张图去吃这一截"：图场仍然定值 180px，
+   多出来的高度由下面那张「行为构成」的行距吸收（见 .card.ov-behaviour 那一组）。
+   这里原来写的是 align-self: start——那一列只有一张卡时，让剩下那一截落在页面底色上
+   是唯一不产生空洞的办法；补上第二张卡之后这个前提没了。
+   能做齐的是**一个方向**：房间卡更高时右列压到它的底线上。反过来（这一列两张卡的
+   自然高高过一张没人在线、读不到实时的房间卡，云机常这样）行高由右列定、房间卡先结束，
+   富余落在卡外的页面底色上——要强行拉平只能去拉伸房间卡，那是 #123 否掉的"空白在卡里"。 */
+/* 1080 这一对 min/max 保留，不参与三档归并：它按"内容列数"而不是按
+   手机 / 平板 / 桌面断，.grid-wide 单列与下面 .facts 固定四列都是 1440 实测过的
+   列宽分配（见上面 #124 那笔算账）。并进 900 会让 901~1080 过早单列、过早四列，
+   属于只影响大屏布局的少量规则，留着反而更安全。 */
+@media (max-width: 1080px) { .grid-wide { grid-template-columns: minmax(0, 1fr); } }
+
+/* 页顶那几个数字块，收敛成中性卡底：原先那层 10% 页面主色渐变，叠上 .tint-* 把
+   --page-accent 换成各色相之后，同页八张小卡就是八种底色。现在底色一律 --card，
+   色相只留在左沿那条 3px 和标签图标上——认这块内容靠的还是标签文字和形状。
+   文字仍取 --text/-2/-3，中性底比混了色相的渐变更纯，深浅主题对比度都不掉。 */
+.stat { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px;
+        padding: 11px 13px 11px 15px; border: 1px solid var(--line-soft); border-radius: var(--r-md);
+        background: var(--card); }
+.stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+                background: var(--tint, var(--page-accent)); opacity: .8; }
+/* tone 只把语义色喂给左沿和图标，不再借 --page-accent 去铺整块底；数字着色单独写在下面。 */
+.stat.ok { --page-accent: var(--ok); --tint: var(--ok); }
+.stat.warn { --page-accent: var(--warn); --tint: var(--warn); }
+.stat.bad { --page-accent: var(--bad); --tint: var(--bad); }
+.stat.info { --page-accent: var(--info); --tint: var(--info); }
+.stat-k { display: flex; align-items: center; gap: 6px; font-size: var(--t-xs); color: var(--text-3); }
+.stat-v { font-size: 20px; font-weight: 650; font-family: var(--font-mono);
+          letter-spacing: -.2px; line-height: 1.25; }
+.stat-note { font-size: var(--t-xs); color: var(--text-2); overflow-wrap: anywhere; }
+/* 带语义的那几档把数字本身染上颜色：左沿那条 3px 色标太细，
+   一屏四块统计时扫一眼看到的是四个数字，不是四条边。 */
+.stat.ok .stat-v { color: var(--ok); }
+.stat.warn .stat-v { color: var(--warn); }
+.stat.bad .stat-v { color: var(--bad); }
+.stat.info .stat-v { color: var(--info); }
+/* 兼容保留 .stat.tint-*：JS 仍会挂这些类，但不再让色相接管整块 --page-accent
+   （那会把卡底重新染回八种颜色）；左沿那一抹由 .tint-* 给的 --tint 负责。 */
+.stat.tint-azure, .stat.tint-cyan, .stat.tint-teal, .stat.tint-green, .stat.tint-gold,
+.stat.tint-amber, .stat.tint-coral, .stat.tint-rose, .stat.tint-violet, .stat.tint-slate {
+  --page-accent: var(--accent); }
+.stat-k .ic { color: var(--tint, var(--page-accent)); opacity: .9; flex: 0 0 auto; }
+
+/* ---- 事实条：一枚图标 + 短标签 + 值 ----
+   和 .stat 的分工：.stat 是"这一页要盯的那几个数"（竖排、数字大），
+   .fact 是"这个房间是个什么东西"（横排、一行能放五六项）。
+   每项前面那枚图标按色板分派：读的人不用扫完文字才知道这一格讲的是什么，
+   而色相彼此不同，才分得出这是六件事而不是同一件事写了六遍。 */
+.facts { display: grid; gap: 8px 10px;
+         grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); }
+/* 事实条同样收成中性卡底：18% 色相铺底让一横排六七个 fact 各带一种颜色，
+   和统计块是同一个毛病。色相只留在每项前面那枚图标上，边框和底色都走中性变量。 */
+.fact { display: flex; align-items: center; gap: 9px; min-width: 0;
+        padding: 7px 10px; border-radius: var(--r-sm);
+        border: 1px solid var(--line-soft); background: var(--card); }
+.fact > .ic { color: var(--tint, var(--tile, var(--page-accent))); flex: 0 0 auto; }
+.fact > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.fact i { font-style: normal; font-size: var(--t-xs); color: var(--text-3);
+          display: flex; align-items: center; gap: 3px; }
+.fact b { font-size: var(--t-md); font-weight: 620; overflow: hidden;
+          text-overflow: ellipsis; white-space: nowrap; }
+.fact b .num { font-weight: 620; }
+/* 宽屏固定四列：事实条现在正好八项，交给 auto-fit 在 1440 会算出六列，
+   第二行剩两格被拉开成两条横幅，看着像漏了什么。四列是两行四格，扫读节奏也固定。 */
+/* 与上面那条 max-width:1080 互补的同一档大屏布局，理由同上，一并保留。 */
+@media (min-width: 1080px) { .facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* 卡片头右侧那组"换房间"控件：下拉框按内容占宽，不给它 100%（表单里的
+   select 默认铺满整格，挂在标题行上会顶掉整行其余部分）。 */
+.picker { flex: 0 1 auto; }
+.picker label { font-size: 12.5px; color: var(--text-2); font-weight: 600; }
+.picker select { width: auto; min-width: 148px; max-width: 230px; }
+
+/* ---- 状态标记：颜色 + 形状 + 文字 ---- */
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+         padding: 2px 9px 2px 7px; border-radius: 999px; border: 1px solid transparent;
+         white-space: nowrap; }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.badge.running, .badge.ok { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.badge.warn { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.badge.bad { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.badge.idle { color: var(--idle); background: var(--idle-soft); border-color: color-mix(in srgb, var(--idle) 35%, transparent); }
+.badge.info { color: var(--info); background: var(--info-soft); border-color: color-mix(in srgb, var(--info) 35%, transparent); }
+.badge.running::before { animation: pulse 1.8s infinite; }
+.badge.bad::before { border-radius: 2px; }
+.badge.idle::before { width: 6px; height: 2px; border-radius: 1px; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+        padding: 2px 8px; border-radius: 999px; background: var(--card-2);
+        border: 1px solid var(--line-soft); color: var(--text-2); white-space: nowrap; }
+.chip .ic { opacity: .8; }
+.chip.mono { font-family: var(--font-mono); }
+/* 同一批 chip 里有的是"标签"、有的是"状态"：状态那几枚要能一眼分出来，
+   所以只换描边和字色，不换形状——形状一致它们才能排在一行里不乱。 */
+.chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 34%, transparent); background: var(--ok-soft); }
+.chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 34%, transparent); background: var(--warn-soft); }
+.chip.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 34%, transparent); background: var(--bad-soft); }
+.chip.info { color: var(--info); border-color: color-mix(in srgb, var(--info) 34%, transparent); background: var(--info-soft); }
+.chip.accent { color: var(--text); border-color: color-mix(in srgb, var(--page-accent) 40%, transparent);
+               background: color-mix(in srgb, var(--page-accent) 13%, transparent); }
+/* 进程停了之后，那排数字是"最后一次采集"而不是现状：压暗，别和活数据一个权重。 */
+.chips-old { opacity: .55; }
+/* 事件计数做成能按的 chip（日志页那一排"这一屏里的事件"）：
+   底色和字色跟着普通 chip 走，只补 button 需要的字体继承、光标和"选中"这一档。
+   点一下就是那条筛选、再点取消，所以选中态必须看得出来。 */
+button.chip { font: inherit; font-size: 12px; cursor: pointer; }
+button.chip:hover { border-color: var(--line); color: var(--text); }
+button.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+
+/* ---- 按钮 ---- */
+/* 次要按钮不再是一块比卡片更深的"黑砖"（2026-11-09 用户："按钮都是黑色的，
+   我感觉不是很搭配？有点粗糙"）：改成几乎透明的浅底 + 一圈细线，悬停才浮出主色。
+   深浅主题都由变量推，不写死颜色；primary / danger / ok 各自仍盖得住自己的底色。 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+       font: inherit; font-size: 13px; padding: 7px 13px; border-radius: var(--r-sm);
+       border: 1px solid var(--line);
+       background: color-mix(in srgb, var(--card-2) 55%, transparent); color: var(--text);
+       cursor: pointer; transition: background var(--speed), border-color var(--speed), transform var(--speed); }
+.btn:hover:not(:disabled) { background: var(--accent-soft);
+                            border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
+/* 语义色按钮悬停不能跟着变成蓝的：各自沿自己的颜色加深一点。 */
+.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 18%, var(--card));
+                                   border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
+.btn.ok:hover:not(:disabled) { background: color-mix(in srgb, var(--ok) 18%, var(--card));
+                               border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+/* 浅色主题里"半透明底 + 浅描边"太虚：1440 浅色截图上「重新核对」「去改密码」
+   几乎糊成白底上的一行灰字。白卡上换回实心的 --card-2 浅灰 + 稍深一圈线，
+   文字用主文本色，既不会退回深色主题那种黑砖，也认得出是可点的。 */
+:root[data-theme="light"] .btn:not(.primary):not(.danger):not(.ok):not(.ghost) {
+  background: var(--card-2);
+  border-color: color-mix(in srgb, var(--text-3) 35%, var(--line));
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+/* ghost 只把底色撤掉，所以必须排在 primary/danger/ok 前面：
+   同优先级的规则后写的赢，一个按钮同时带 ghost 和 primary 时留下的是
+   "透明底 + 白字"，深色主题看着正常、浅色主题文字就没了（实测踩过）。 */
+.btn.ghost { background: transparent; }
+/* primary 带一点纵向渐变和同色辉光：整站主色只有这一种按钮用满饱和，
+   平涂一块在深色底上和 --accent-soft 的选中态差不开，看不动"哪个才是主操作"。 */
+.btn.primary { background: linear-gradient(180deg,
+                  color-mix(in srgb, var(--accent) 86%, #fff), var(--accent));
+               border-color: color-mix(in srgb, var(--accent) 70%, #fff); color: #fff; font-weight: 600;
+               box-shadow: 0 2px 10px -4px color-mix(in srgb, var(--accent) 65%, transparent); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08);
+  /* .btn:hover 用的是 background 简写，会把这里的渐变整条抹掉，
+     所以悬停态必须把渐变原样再写一遍，只调亮度和辉光。 */
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 86%, #fff), var(--accent));
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 75%, transparent); }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: var(--bad-soft); }
+/* 实心红只给"这一步就是当前主操作"的那一颗：世界在跑时停止世界和没跑时启动世界
+   是同一个位置的同一个主操作，重量必须一样，否则主操作会随着状态变轻。
+   表格里那些删登记的 danger 继续用软底——那里要的是认得出危险，不是催你点。 */
+.btn.danger.solid { background: linear-gradient(180deg,
+                       color-mix(in srgb, var(--bad) 86%, #fff), var(--bad));
+                    border-color: color-mix(in srgb, var(--bad) 70%, #fff); color: #fff; font-weight: 600;
+                    box-shadow: 0 2px 10px -4px color-mix(in srgb, var(--bad) 65%, transparent); }
+.btn.danger.solid:hover:not(:disabled) { filter: brightness(1.08);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--bad) 86%, #fff), var(--bad));
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--bad) 75%, transparent); }
+.btn.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: var(--ok-soft); }
+.btn.sm { font-size: 12px; padding: 4px 9px; }
+/* 大号动作键：房间操作台那一排"启动/保存/备份"用，一页最多一处，
+   和普通按钮混在一排就谁都不突出了。 */
+.btn.lg { font-size: var(--t-md); padding: 10px 16px; border-radius: var(--r-sm); min-height: 40px; }
+.btn.block { width: 100%; }
+.btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+/* 一排等宽的主操作：手机上自动掉回自然换行，四格挤一条会把字压成两行。 */
+.action-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .action-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---- 远程指令那一排 ----
+   这些动作"能点，但点之前得清楚自己在点什么"，所以做成比标签大一档、又比主按钮
+   小一档的胶囊：选中哪一条，下面才展开说明、参数和发送键。红色那几枚不是"坏了"，
+   是"这条会动世界"，所以用同一形状只换颜色——形状一换它们就想被单独点。
+   类名前缀一律 ops-/op-：`.cmd-row` 与 `.cmd` 已经被上面的"加入命令弹窗"占了
+   （那一条是 flex: 1 1 260px 的整段命令文本框），同名会让胶囊被拉成四等分长条。 */
+.ops-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.op { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px;
+      padding: 6px 11px; min-height: 32px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--line-soft); background: var(--card-2); color: var(--text-2);
+      transition: border-color var(--speed), color var(--speed), background var(--speed); }
+.op .ic { color: var(--tile, var(--page-accent)); }
+.op:hover { border-color: var(--line); color: var(--text); }
+.op.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.op.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 34%, transparent); background: var(--bad-soft); }
+.op.danger .ic { color: var(--bad); }
+.op.danger.on { border-color: var(--bad); }
+.op i { font-style: normal; font-size: 12px; color: var(--text-3); }
+.op-panel { margin-top: 12px; padding: 12px; display: grid; gap: 12px;
+            border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--card-2); }
+.op-desc { margin: 0; font-size: 12.5px; color: var(--text-2); }
+/* 参数表单不铺满整张卡：一个"跳过天数"的数字框拉到 1400px 宽，
+   看着像漏了样式，而且没人会往一个 1~30 的框里打一百个字符。 */
+.op-args { display: grid; gap: 10px; max-width: 560px;
+           grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.op-last { margin-top: 12px; padding: 9px 11px; display: grid; gap: 4px;
+           border-radius: var(--r-sm); background: var(--ok-soft);
+           border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent); }
+@media (max-width: 560px) { .op { min-height: 40px; font-size: 13px; } }
+
+.linkish { border: 0; background: none; color: var(--accent); font: inherit; font-size: 12.5px;
+           cursor: pointer; padding: 0; text-decoration: underline dotted; }
+.linkish:hover { text-decoration: underline; }
+.linkish.danger { color: var(--bad); }
+
+/* ---- 表单 ---- */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .field-head > label { font-size: 12.5px; color: var(--text-2); font-weight: 600; }
+/* 标签那一行右边挂一枚说明气泡：单位/默认值这类"看得懂就不用读"的话不占行。 */
+.field-head { display: flex; align-items: center; gap: 6px; }
+.field-head > label { flex: 1; min-width: 0; }
+.field .hint { font-size: 12px; color: var(--text-3); }
+.field .hint.warn { color: var(--warn); }
+.field .hint.ok { color: var(--ok); }
+.grid-form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+input[type="text"], input[type="number"], input[type="password"], input[type="search"],
+input[type="date"], select, textarea {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--elev);
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 7px 9px; width: 100%;
+  min-width: 0;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft); }
+/* 鼠标点出来的 focus 不画系统框（观感和以前一样）；键盘 Tab 的焦点交给
+   基础区那条统一的 :focus-visible，2px 实线才看得见落在哪。 */
+input:focus:not(:focus-visible), select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) { outline: none; }
+textarea { min-height: 84px; resize: vertical; font-family: var(--font-mono); font-size: 13px; }
+select { appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%),
+                    linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+input[type="number"], input[type="date"] { font-family: var(--font-mono); }
+input:disabled, select:disabled, textarea:disabled { opacity: .55; cursor: not-allowed; }
+
+/* 和字典默认值不一样的那一项。世界设定一页有两百多项，只靠项下面那行"已改"的小字
+   扫视不到；边框和底色一起变，才能在手机上一路滑过去也能看出哪几项被动过。 */
+select.changed, input.changed { border-color: var(--accent); background-color: var(--accent-soft); }
+
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* 轨道里带"开/关"两个字：光看滑块位置要在两种语言里判断一次"靠左是靠右"，
+   而这一页十几个开关是竖着排的，眼睛得逐个对齐。字放在滑块的对侧，不会被压住。 */
+.switch .track { width: 44px; height: 21px; border-radius: 999px; background: var(--line);
+                 position: relative; transition: background var(--speed); flex: 0 0 auto; }
+.switch .track::before { content: "关"; position: absolute; right: 6px; top: 0; line-height: 21px;
+                         font-size: 12px; color: var(--text-3); }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px;
+                        border-radius: 50%; background: var(--elev); transition: transform var(--speed); }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::before { content: "开"; left: 7px; right: auto; color: #fff; }
+.switch input:checked + .track::after { transform: translateX(23px); background: #fff; }
+.switch input:disabled + .track { opacity: .5; }
+
+/* 单选成组时用它：状态色跟随选中项，避免"选中了哪个"要靠读码值 */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm);
+       overflow: hidden; background: var(--elev); }
+.seg button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 12.5px;
+              padding: 6px 11px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+
+/* 操作记录的时间那一行：分段控件加两个日期框。日期框只在「自定义」这一档出现，
+   所以整行必须能折——不折的话手机上就是横向溢出。底边对齐，让分段控件和输入框坐一条线。 */
+.audit-when { flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.audit-when .when-field { width: 170px; flex: 0 0 auto; }
+.audit-when .when-dash { font-size: var(--t-sm); color: var(--text-3); padding-bottom: 8px; }
+/* 时间区间的说明与报错同一块地方：写反了必须在这一行变红，
+   而不是安静地给一张空表——空表和"那段时间没操作过"长得一样。 */
+.when-note { font-size: var(--t-sm); color: var(--text-3); }
+.when-note.bad { color: var(--bad); }
+/* 谁做的 / 对象里含：和上面那行时间轴一样要能各自折行，窄屏不许撑出横向滚动。 */
+.audit-who { flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.audit-who .who-field { flex: 1 1 200px; max-width: 320px; }
+/* 生效中的条件：一条一枚，点它就撤掉这一条。做成按钮而不是普通 chip——
+   看着能点的东西必须真的能点。 */
+.audit-on { flex-wrap: wrap; align-items: center; gap: 8px; }
+.fchip { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px;
+  color: var(--text-2); background: var(--elev); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 5px 3px 10px; cursor: pointer; }
+.fchip:hover { border-color: var(--accent); color: var(--text); }
+.fchip .fx { display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--line); color: var(--text-2);
+  font-size: 12px; line-height: 1; }
+.fchip:hover .fx { background: var(--accent); color: var(--elev); }
+@media (max-width: 560px) {
+  /* 窄屏上两个日期框还是并排：竖着排的话「到」这个字孤零零挂在第一个框右边，
+     看不出它是连接词。缩到 150 基准宽，日期串加日历图标还放得下。 */
+  .audit-when .when-field { width: auto; flex: 1 1 150px; }
+  /* 操作记录的筛选块在手机上默认收起（展开按钮见 audit.js）。
+     只在断点里断，不由 JS 判屏幕宽度：这样转屏、拖窗口都不用重算。 */
+  .audit-filters { display: none; }
+  .audit-filters.open { display: flex; }
+}
+
+/* 拖拽上传区：原生 input[type=file] 只有一个小按钮加一行灰字，看不出"这一片能放东西"。
+   真正选文件的还是那个 input（藏在下面，由这一片代点），这里只负责点、拖和说状态。 */
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+        min-height: 96px; padding: 14px; text-align: center; cursor: pointer; color: var(--text-2);
+        border: 1.5px dashed var(--line); border-radius: var(--r-md); background: var(--elev);
+        transition: border-color var(--speed), background var(--speed), color var(--speed); }
+/* 这里原来连 :focus-visible 一起写了 outline:none，键盘用户于是只看到边框变色；
+   去掉它，焦点框统一由基础区那条 2px 实线给。 */
+.drop:hover, .drop:focus-visible { border-color: var(--accent); color: var(--text); }
+.drop.over { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+/* 接住文件了：这一栏是上传唯一的必填项，边框转绿等于说"不用再动了"，
+   否则用户分不清"这块只是显示了个名字"还是"真的拿到了这个包"。 */
+.drop.has { border-style: solid; border-color: var(--ok); color: var(--text); }
+.drop .drop-t { font-size: var(--t-md); font-weight: 600; word-break: break-all; }
+.drop .drop-s { font-size: var(--t-xs); color: var(--text-3); }
+.drop-file { position: absolute; opacity: 0; width: 0; height: 0; }
+
+/* ---- 表格 ---- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md);
+              background: var(--card); }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th, table.data td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-soft);
+                               vertical-align: top; }
+table.data th { font-size: 12px; color: var(--text-3); font-weight: 600; white-space: nowrap;
+                background: var(--card-2); position: sticky; top: 0; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data tbody tr:hover td { background: color-mix(in srgb, var(--card-2) 60%, transparent); }
+table.data td.mono, table.data th.mono { font-family: var(--font-mono); font-size: 13px; }
+table.data td.wrap { min-width: 220px; }
+
+/* 表格密度：只作用在表格容器上，默认那套不动，前端按需挂 .dense / .comfortable。
+   .dense 沿用日志/紧凑 KV 的 12.5px 配紧凑行高，.comfortable 抬到 13px 并放松行距；
+   两条都同时认"容器带类"和"表格自己带类"，钩子怎么挂都生效。 */
+.dense table.data, .dense table.data td, .dense table.data th,
+table.data.dense, table.data.dense td, table.data.dense th { font-size: 12.5px; }
+.dense table.data td, .dense table.data th,
+table.data.dense td, table.data.dense th { padding: 5px 9px; line-height: 1.4; }
+.comfortable table.data, .comfortable table.data td,
+table.data.comfortable, table.data.comfortable td { font-size: 13px; }
+.comfortable table.data td, .comfortable table.data th,
+table.data.comfortable td, table.data.comfortable th { padding: 11px 12px; line-height: 1.6; }
+
+/* "这一行有话要说"：房间总览里进程在跑却不回话、或没配登录令牌的那些分片。
+   只画一条左边框而不是整行铺色——一屏十几行全铺成黄色会盖掉表格本身的层次，
+   而读者要的只是"哪一行需要我动手"。 */
+table.data tr.flag > td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.room-card.flag { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+
+/* ---- 房间名 = 取加入命令的把手 ----
+   做成"看起来是文字、点下去有事发生"而不是又一个按钮：这一页每行已经有
+   「进入」一枚按钮，再加一枚会把动线变成"先选哪个按钮"。
+   那个复制图标默认藏着，悬停和键盘聚焦才出来——手机上没有悬停，所以那里常驻。 */
+/* 房间名点得下来（取加入命令），那它就得看着像能点。
+   原来那枚复制图标只在悬停时才出现（opacity 0 → 1），1440 宽度上第一次用的人
+   不知道这里有一件事可以做——2026-11-04 用户提的正是这一点，并且写明不要靠加文字。
+   所以改的是可发现性本身：图标常驻，并放进一颗带边的小方块（这颗方块是面板里
+   "这是个控件"的通用形状），名字带一条很淡的点线下划线；悬停时两个一起亮起来。
+   手机上原来的 opacity .75 那一档不再需要，因为现在两边都常驻。 */
+.room-name { display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+             padding: 2px 6px; border: 0; background: none; color: inherit; font: inherit;
+             font-weight: 650; line-height: 1.35; text-align: left; cursor: pointer;
+             border-radius: var(--r-sm);
+             transition: background var(--speed) ease, color var(--speed) ease; }
+.room-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+             text-decoration: underline dotted; text-decoration-thickness: 1px;
+             text-underline-offset: 4px;
+             text-decoration-color: color-mix(in srgb, var(--text-3) 42%, transparent); }
+/* 图标外面要有一层自己的方块：x-icon 把 :size 写成行内 style（width:13px），
+   CSS 里给 .ic 写宽高是压不过行内样式的，所以那颗 21px 的方块只能包出来。 */
+.room-name .ic-box { flex: none; display: inline-flex; align-items: center; justify-content: center;
+             width: 21px; height: 21px; border-radius: var(--r-xs);
+             color: var(--text-2); background: var(--card-2);
+             box-shadow: inset 0 0 0 1px var(--line);
+             transition: color var(--speed) ease, background var(--speed) ease, box-shadow var(--speed) ease; }
+.room-name .ic { opacity: 1; }
+.room-name:hover { color: var(--accent); background: var(--accent-soft); }
+.room-name:hover > span { text-decoration-color: currentColor; }
+.room-name:hover .ic-box { color: var(--accent); background: var(--accent-soft);
+             box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+.room-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.room-name:focus-visible .ic-box { color: var(--accent);
+             box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* ---- 公网房间列表 ---- */
+/* 六个条件挤在一排时必须看得出"这是一组筛选"：整块包一层边框和底，
+   而不是让下拉框直接站在页面背景上跟上面的统计卡混成一片。 */
+.lobby-filters { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md);
+                 background: var(--card); }
+/* 进不去的那些行压暗而不是删掉：满员和暂停是这一屏里最常见的两件事，
+   把它们从列表里抹掉会让人以为这个大区只剩二十间房。 */
+table.data tr.dim { color: var(--text-3); }
+table.data tr.dim b { color: var(--text-2); }
+.access-line { font-size: 12px; line-height: 1.4; }
+/* 复制失败时摊在说明里的那一句连接命令。样式沿用总览页连接弹窗的 .cmd（可以整段选中），
+   这里只需要和上面那句话之间留一点距离。 */
+.copy-cmd { margin-top: 7px; }
+/* 标签是房主自己填的自由文本，长度不可控：压到最小号并整行换行，
+   一长串标签不该把这一行撑成三行高。 */
+.lobby-tags .chip { font-size: 12px; padding: 1px 6px; color: var(--text-3); }
+/* 房间名列只许占两行：实测里最长的名字是一段带换行的自我介绍，
+   原样摆出来这一列就成了半屏高的段落，整屏都扫不动。完整名字挂在悬停上。 */
+table.data td.room-name-cell { max-width: 300px; }
+table.data td.room-name-cell b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                                 overflow: hidden; line-height: 1.4; }
+/* 单个标签实测最长 328 字：截断，全文留给悬停；不然一行标签就能把这一列撑爆。 */
+.lobby-tags .chip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.tag-more { font-size: 12px; }
+/* 手机卡片上的房间名同样要封顶：一段自我介绍式的长名字会把卡片撑到屏幕外，
+   而这一屏在手机上就是"扫一遍挑一间"。flex 里得先给 min-width:0 才轮得到截断。 */
+.room-card-name { min-width: 0; display: -webkit-box; -webkit-line-clamp: 3;
+                  -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---- 加入命令弹窗 ---- */
+.connect-dialog { width: min(600px, 100%); }
+.connect-head { align-items: flex-start; margin-bottom: 6px; }
+.connect-lede { font-size: 12.5px; margin-bottom: 10px; }
+.cmd-row { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+.cmd { flex: 1 1 260px; min-width: 0; padding: 10px 12px; border-radius: var(--r-sm);
+       /* 这句是要人照着粘进游戏控制台的，所以必须能整段选中：允许换行、
+          不出现横向滚动，深底上把颜色拉满对比度。 */
+       background: var(--elev); border: 1px solid var(--line); color: var(--text);
+       font-size: 13px; line-height: 1.5; word-break: break-all; user-select: all; }
+.cmd-row .btn { flex: none; align-self: center; }
+.connect-dialog .muted { font-size: 12.5px; line-height: 1.55; }
+.connect-dialog .muted.is-warn { color: var(--warn); }
+.connect-dialog .note { margin-top: 10px; }
+.connect-kv { margin-top: 12px; }
+.connect-kv dt { white-space: nowrap; }
+kbd { display: inline-block; padding: 1px 5px; border: 1px solid var(--line);
+      border-bottom-width: 2px; border-radius: 4px; background: var(--card-2);
+      font-family: var(--font-mono); font-size: 12px; }
+/* 反引号这个字符在等宽字里只占上半格的一个小点，键帽照画会像一个空框。
+   加大字号并把行高锁死，让那个点落在键帽中间。 */
+kbd.tick { min-width: 20px; text-align: center; font-size: 15px; line-height: 1.1;
+           padding: 2px 5px 3px; color: var(--text); }
+
+/* ---- 归属：房间页动作条上那句"为什么改不动" ---- */
+/* 整行铺开而不是占一格：这句话回答的是"这一排按钮怎么没了"，
+   缩在一格里会被省略号截成半句，而半句比没有更让人怀疑是面板坏了。 */
+.assign-note { grid-column: 1 / -1; display: flex; gap: 7px; align-items: flex-start;
+               padding: 8px 11px; border-radius: var(--r-sm);
+               font-size: 12.5px; line-height: 1.55; color: var(--text-2);
+               border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent);
+               background: color-mix(in srgb, var(--warn) 9%, var(--card-2)); }
+.assign-note .ic { flex: none; color: var(--warn); margin-top: 1px; }
+
+/* ---- 指派归属弹窗 ---- */
+.owner-dialog { width: min(560px, 100%); }
+.owner-head { align-items: center; margin-bottom: 4px; }
+.owner-head h3 { display: flex; align-items: center; gap: 7px; }
+.owner-head h3 .ic { color: var(--text-3); }
+.owner-lede { font-size: 12.5px; margin-bottom: 10px; }
+.owner-rule { font-size: 12px; margin-top: 8px; }
+.owner-dialog .note { margin-top: 10px; }
+/* 分片行上顶替启停按钮的那枚"看得到，动不了"。它说的是一件已经发生的事
+   （这排按钮本来就不给你），不是告警，所以比 .assign-note 暗一档，
+   免得两个世界各自挂一条橙色的东西把整行刷成错误色。 */
+.lock-chip { color: var(--text-3); }
+.lock-chip .ic { opacity: .65; }
+/* 房间名下面那一行归属。它是这一间的注脚而不是新的一列，所以要贴左、比常规 chip 小一号；
+   flex 列里默认会被拉满整格，那条描边就成了一条横线。 */
+.owner-chip { align-self: flex-start; font-size: 12px; padding: 1px 7px; }
+
+/* 折叠展开用的两层表：主行 + 明细行 */
+tr.detail > td { background: var(--card-2); padding: 12px; }
+
+/* ---- 提示条 ---- */
+.note { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--r-sm);
+        padding: 9px 12px; font-size: 12.5px; color: var(--text-2); background: var(--card-2); }
+.note.info { border-left-color: var(--info); }
+.note.ok { border-left-color: var(--ok); }
+.note.warn { border-left-color: var(--warn); }
+.note.bad { border-left-color: var(--bad); color: var(--text); }
+.note ul { margin: 6px 0 0; padding-left: 18px; }
+.note li { margin-bottom: 3px; }
+.note b { color: var(--text); }
+
+/* ---- 进度 ---- */
+.bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; min-width: 70px; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px;
+           transition: width var(--speed); }
+.bar.ok > i { background: var(--ok); }
+.bar.bad > i { background: var(--bad); }
+/* 执行中的条子要自己动：一次下载几分钟里可能只涨两个百分点，
+   完全静止的条子和"卡死了"在界面上长得一模一样。 */
+.bar.live > i { background: linear-gradient(100deg, rgba(255,255,255,0) 35%,
+                rgba(255,255,255,.5) 50%, rgba(255,255,255,0) 65%), var(--accent);
+                background-size: 220% 100%, auto; animation: shimmer 1.3s infinite; }
+
+/* ---- Toast ---- */
+.toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column;
+          gap: 8px; z-index: 200; max-width: min(420px, calc(100vw - 32px)); }
+.toast { background: var(--elev); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+         border-radius: var(--r-sm); box-shadow: var(--shadow); padding: 10px 12px;
+         font-size: 13px; animation: rise var(--speed) ease-out; }
+.toast.ok { border-left-color: var(--ok); }
+.toast.warn { border-left-color: var(--warn); }
+.toast.bad { border-left-color: var(--bad); }
+.toast .t-title { font-weight: 600; margin-bottom: 2px; }
+.toast .t-body { color: var(--text-2); font-size: 12.5px; white-space: pre-line; word-break: break-word; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- 对话框 ---- */
+.mask { position: fixed; inset: 0; background: var(--mask); display: grid; place-items: center;
+        z-index: 150; padding: 16px; }
+.dialog { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg);
+          box-shadow: var(--shadow); width: min(560px, 100%); max-height: 88vh; overflow: auto;
+          padding: 18px; }
+.dialog h3 { margin-bottom: 8px; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.dialog.danger { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+
+/* 登录层：Basic 认证没有会话，凭据只留在内存里（见 js/api.js）。
+   桌面端左右分栏——左边说清楚这个面板管什么，右边是表单；
+   手机上英雄区收成一条品牌头，表单紧跟着，中间不留半屏空白。 */
+.login { position: relative; min-height: 100vh; display: flex; align-items: center;
+         justify-content: center; padding: 32px 20px; overflow: hidden; }
+.login-bg { position: absolute; inset: 0; pointer-events: none;
+            background:
+              radial-gradient(820px 420px at 12% -12%, var(--accent-soft), transparent 66%),
+              radial-gradient(680px 360px at 92% 4%, var(--ok-soft), transparent 62%),
+              radial-gradient(720px 420px at 86% 108%, var(--warn-soft), transparent 60%); }
+.login-bg::after { content: ""; position: absolute; inset: 0; opacity: .4;
+  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(72% 64% at 50% 42%, #000 28%, transparent 100%);
+  mask-image: radial-gradient(72% 64% at 50% 42%, #000 28%, transparent 100%); }
+
+.login-shell { position: relative; z-index: 1; width: min(1040px, 100%);
+               display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(340px, .95fr);
+               gap: 28px; }
+.login-hero { display: flex; flex-direction: column; justify-content: center;
+              padding: 8px 12px; min-width: 0; }
+.login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.login-brand .brand-mark { width: 44px; height: 44px; border-radius: 14px; color: #0b0f16;
+                           box-shadow: 0 10px 28px -10px color-mix(in srgb, var(--h-azure) 60%, transparent); }
+.login-brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+.login-brand-name { font-weight: 700; font-size: 16px; letter-spacing: .4px; }
+.login-brand-sub { font-size: 12px; color: var(--text-3); letter-spacing: 2.4px; }
+.login-slogan { font-size: 30px; line-height: 1.32; letter-spacing: .5px; margin-bottom: 12px; font-weight: 700; }
+/* 标题带一点渐变：只从正文色走到主色，不通体彩色——彩色文字在手机小屏上会先糊掉笔画。
+   不支持 background-clip: text 的浏览器保留上面的纯色正文，不会出现"标题不见了"。 */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .login-slogan { background: linear-gradient(96deg, var(--text) 24%, var(--page-accent) 88%);
+                  -webkit-background-clip: text; background-clip: text; color: transparent; }
+}
+.login-lede { font-size: 13.5px; color: var(--text-2); max-width: 46ch; }
+.login-points { list-style: none; margin: 18px 0 0; padding: 0;
+                display: grid; gap: 10px; max-width: 470px; }
+.login-points li { display: flex; gap: 10px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.login-points b { color: var(--text); font-weight: 600; }
+/* 三条介绍各自一个色相：登录页是"还没进面板"的那一屏，
+   这里没有哪一页的语境，正好用色相把三块能力分开区分开，而不是堆三个一样的蓝块。 */
+.lp-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
+          display: grid; place-items: center; color: var(--page-accent);
+          background: color-mix(in srgb, var(--page-accent) 13%, transparent);
+          border: 1px solid color-mix(in srgb, var(--page-accent) 26%, transparent); }
+.lp-a { --page-accent: var(--h-azure); }
+.lp-b { --page-accent: var(--h-teal); }
+.lp-c { --page-accent: var(--h-green); }
+.login-foot { margin-top: 24px; font-size: 12px; color: var(--text-3); }
+
+.login-card { align-self: center; padding: 26px 24px 22px;
+              background: color-mix(in srgb, var(--card) 92%, transparent);
+              border: 1px solid var(--line); border-radius: var(--r-lg);
+              box-shadow: var(--shadow); backdrop-filter: blur(10px); }
+.login-card-head { display: flex; align-items: center; justify-content: space-between;
+                   gap: 10px; margin-bottom: 6px; }
+.login-card-head h2 { font-size: 18px; }
+.login-hint { font-size: 12.5px; margin-bottom: 16px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-form input { padding: 10px 12px; font-size: 14px; }
+.login-pass { position: relative; }
+.login-pass input { padding-right: 46px; }
+.login-eye { position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+             display: grid; place-items: center; width: 32px; height: 32px;
+             border: 0; background: none; color: var(--text-2);
+             padding: 0; border-radius: 8px; cursor: pointer; }
+.login-eye:hover { color: var(--text); background: var(--card-2); }
+.login-submit { margin-top: 4px; padding: 10px 14px; font-size: 14px; }
+.login-card-foot { margin-top: 14px; font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+/* 880 归并进 900（平板档）：881~900 那一段原本还是双栏，宽度刚够时两栏会挤，
+   提前切成单列只会更稳；这一档仍然覆盖 768。 */
+@media (max-width: 900px) {
+  /* 手机上不再垂直居中：hero 和表单贴顶排下来，第一屏就能看到输入框。 */
+  .login { align-items: flex-start; padding: 22px 16px 28px; }
+  .login-shell { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .login-hero { padding: 2px 2px 0; }
+  .login-brand { margin-bottom: 14px; }
+  .login-brand .brand-mark { width: 36px; height: 36px; border-radius: 11px; }
+  .login-slogan { font-size: 23px; margin-bottom: 8px; }
+  .login-lede { font-size: 13px; }
+  /* 手机上留品牌与一句话即可：三条功能介绍会把输入框推到第二屏。 */
+  .login-points, .login-foot { display: none; }
+  .login-card { padding: 20px 18px 18px; }
+  /* 眼睛那颗按钮是密码框上唯一要点准的东西，32px 在手机上偏小。 */
+  .login-eye { width: 40px; height: 40px; }
+  .login-pass input { padding-right: 52px; }
+}
+
+/* 380 归并进 560（手机档）：这三条只是把标题再缩一号、内边距再收一点，
+   381~560 一起套用不会撑出横向滚动，反而比原来的 23px 更稳。 */
+@media (max-width: 560px) {
+  .login-slogan { font-size: 20px; }
+  .login-brand-sub { letter-spacing: 1.6px; }
+  .login-card { padding: 18px 14px 16px; }
+}
+
+/* ---- 标签页 ---- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+        overflow-x: auto; }
+.tabs button { border: 0; background: none; font: inherit; font-size: 13px; color: var(--text-2);
+               padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs button.on { color: var(--text); font-weight: 600; border-bottom-color: var(--page-accent);
+                  /* 选中那一格从底部往上透出一点本页色相：只靠一条 2px 下划线，
+                     在深色底上要盯很久才看得出当前在哪一页。 */
+                  background: linear-gradient(180deg, transparent 40%,
+                    color-mix(in srgb, var(--page-accent) 14%, transparent));
+                  border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.tabs button .tab-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); margin-left: 5px; }
+.tabs button.on .tab-count { color: var(--page-accent); }
+/* 三步动线的序号：页签上的"第几步"要一眼看出先后，否则三个并排标签读起来
+   还是几个平级分类，动线就白排了。空心底 + 细描边，不跟选中态抢颜色。 */
+.tabs button .tab-step { display: inline-flex; align-items: center; justify-content: center;
+                         width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px;
+                         border-radius: 50%; font-family: var(--font-mono); font-size: 12px;
+                         color: var(--text-3); background: var(--elev);
+                         box-shadow: inset 0 0 0 1px var(--line); }
+.tabs button.on .tab-step { color: var(--page-accent);
+                            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-accent) 55%, transparent); }
+/* 房间页签（总览下方那一排）：名字前那颗点是"该点哪一枚"的快答案——
+   实心带光圈是有世界在跑，空心圈是一个都没跑。后面的分数给准数，
+   所以点只负责扫一眼，不负责读数；两者不互相替代。 */
+.grid-wide > .room-tabs { grid-column: 1 / -1; }
+.tabs button .tab-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                        margin-right: 6px; vertical-align: 1px; }
+.tabs button .tab-dot.run { background: var(--ok);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 25%, transparent); }
+.tabs button .tab-dot.idle { background: none; box-shadow: inset 0 0 0 1px var(--text-3); }
+
+/* 按钮里也用它（模组页的「配置 已改 2」）：同一枚小计数，跟着按钮的字色走，
+   否则在 primary 按钮上会因为是 --text-3 而看不见。 */
+.btn .tab-count { font-family: var(--font-mono); font-size: 12px; margin-left: 5px; opacity: .8; }
+.btn.primary .tab-count { color: #fff; opacity: .9; }
+
+/* ---- 日志与流式输出 ---- */
+.logbox { background: var(--elev); border: 1px solid var(--line); border-radius: var(--r-md);
+          padding: 10px; max-height: 60vh; overflow: auto; font-family: var(--font-mono);
+          font-size: 12.5px; line-height: 1.6; }
+.logline { display: flex; gap: 8px; padding: 1px 4px; border-radius: 3px; word-break: break-word;
+           white-space: pre-wrap; }
+.logline .lv { flex: 0 0 auto; font-size: 12px; padding: 0 5px; border-radius: 3px;
+               background: var(--card-2); color: var(--text-3); }
+.logline.err { background: var(--bad-soft); }
+.logline.err .lv { color: var(--bad); background: transparent; }
+.logline.warn { background: var(--warn-soft); }
+.logline.warn .lv { color: var(--warn); background: transparent; }
+.logline.ok .lv { color: var(--ok); background: transparent; }
+.logline .ts { color: var(--text-3); flex: 0 0 auto; }
+/* 正文是一行里唯一会长的那段：min-width:0 让它去吸收剩余空间，长 URL、Lua 堆栈
+   于是在 360px 上换行，而不是把整个日志框撑出横向滚动条。 */
+.logline .body { flex: 1 1 auto; min-width: 0; }
+.logline .who { color: var(--text-2); }
+
+.stream-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: pulse 1.6s infinite; }
+.dot-off { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
+
+/* 日志页顶部的四个选择器：桌面端一行摊开，手机上摊开就是六行，
+   日志本身会被完全挤出第一屏（实测 390px 下日志框顶边在 859px，一屏看不见一行）。
+   所以手机上排成两列，"哪一份 + 实时跟随"合成一行。 */
+.log-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.log-controls > .field { flex: 1 1 150px; }
+.log-controls .lc-right { display: flex; align-items: flex-end; gap: 12px; flex: 0 0 auto; }
+
+/* 这一屏里出现过的事件：手机上压成一条横向滚动带，八枚长标签不再占五行。 */
+.hot-events { flex-wrap: wrap; }
+
+/* ---- 玩家事件表（日志页的第一个看法）----
+   一行是一记行为，九列里有四列（角色 / 账户编号 / Steam ID / IP）只在查人的时候才需要，
+   所以它们进"列设置"。表格本身靠 .table-wrap 在窄窗口里横向滚，手机上（hide-sm / only-sm）
+   整张表换成下面那张竖排卡片，而不是让管理员在小屏上横着拖一条九列的表。 */
+.ev-table td { font-size: 13px; }
+.ev-table .wrap { max-width: 420px; }
+/* 说明那一栏默认两行折掉：引擎偶尔写一行 1000 字的堆栈，一行就能把整屏占满，
+   而这一屏要比的是"哪一记出过事"。点开才铺全。 */
+.ev-raw { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+          overflow: hidden; word-break: break-word; }
+.ev-raw.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.ev-cards { padding: 0 12px 12px; }
+.ev-card { border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--card);
+           padding: 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ev-card-id { gap: 5px; flex-wrap: wrap; }
+/* 底部这一排：左边是"这一页给了哪些 / 一共筛出多少"，右边是每页条数和页码。
+   手机上让页码自己换一行，而不是把三个数压成一团——这句话是这一屏的可信度所在。 */
+.ev-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+           padding: 10px 12px; border-top: 1px solid var(--line); font-size: var(--t-sm); }
+.ev-pagesize { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3);
+               font-size: var(--t-sm); }
+.ev-pagesize select { width: auto; padding: 3px 22px 3px 8px; }
+
+/* 列设置那种"点一下开、点外面关"的小面板。全站之前没有浮层控件，这是第一枚：
+   只依赖父元素的 relative，宽度按内容走，永远右对齐到触发按钮的右边。 */
+.pop-wrap { position: relative; display: inline-flex; }
+.pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 196px;
+       background: var(--card); border: 1px solid var(--line); border-radius: var(--r-md);
+       box-shadow: var(--sh-3); padding: 6px; display: flex; flex-direction: column; gap: 1px; }
+.pop .pop-t { font-size: 12px; color: var(--text-3); padding: 4px 7px 6px; line-height: 1.45; }
+.pop .pop-i { display: flex; align-items: center; gap: 8px; padding: 6px 7px; border-radius: var(--r-sm);
+              border: 0; background: none; font: inherit; font-size: 13px; text-align: left;
+              color: var(--text-2); cursor: pointer; }
+.pop .pop-i:hover:not(:disabled) { background: var(--card-2); color: var(--text); }
+.pop .pop-i .ic { color: var(--text-3); flex: 0 0 auto; }
+.pop .pop-i.on { color: var(--text); }
+.pop .pop-i.on .ic { color: var(--page-accent); }
+.pop .pop-i:disabled { color: var(--text-3); cursor: default; }
+
+/* ---- 任务中心与操作记录的行 ----
+   一条结论可能是一整段（失败原因、恢复后的状态说明）。桌面端整段给出；
+   手机上先折三行，否则三四条任务各占一大段，队列本身就被挤出第一屏。
+   展开按钮在 .task-msg 外面，放进 clamp 里会被一起裁掉（日志页踩过）。 */
+.task-msg { font-size: 12.5px; color: var(--text-2); white-space: pre-line;
+            word-break: break-word; overflow-wrap: anywhere; }
+.task-msg.bad { color: var(--bad); }
+
+/* 进度条背后那一排数：长任务真正要看的不是"40%"，而是"下了多少、总共多少、现在多快、还要多久"。
+   这一排从接口原样给，面板不写死任何一个（整包大小和带宽每台机器都不一样）。
+   小标签压在数值上，是为了让它和上面那条细进度条读起来是一个整体。 */
+.dlstats { display: flex; flex-wrap: wrap; gap: 5px 18px; margin-top: 6px; }
+.dlstats .ds { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dlstats .ds i { font-style: normal; font-size: var(--t-xs); color: var(--text-3); }
+.dlstats .ds b { font-size: 13px; font-weight: 620; color: var(--text); }
+
+/* 手机上的一行计数芯片带：和 .snap-strip 同一套做法，不占五行。 */
+.chip-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+.chip-strip > * { flex: 0 0 auto; }
+
+/* 这三个页面的根容器本身没有自己的观感，留一个定义是给手机的整页排序用的入口
+   （和 .snap-page 一样：说明性内容在窄屏上要能排到列表后面）。 */
+.task-page, .audit-page, .settings-page, .accounts-page, .players-page { min-width: 0; }
+
+@media (max-width: 560px) {
+  .log-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                  gap: 8px; align-items: end; }
+  .log-controls > .field { flex: none; min-width: 0; }
+  .log-controls .lc-right { grid-column: 1 / -1; justify-content: space-between; align-items: center; }
+  .stream-meta { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .stream-meta > * { flex: 0 0 auto; }
+  .hot-events { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .hot-events > * { flex: 0 0 auto; }
+  /* 快照页手机上那四条机制数字：同样是一条横向带，不占五行。 */
+  .snap-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .snap-strip > * { flex: 0 0 auto; }
+  /* 快照页手机上重新排：这一页要看的是"打过哪些档"，两条说明性的 note（机制说明、
+     哪些房间被挡住）合起来 242px，正好把列表推到第一屏之外；每行本身已经带了
+     restoreNote / runningNote，所以那两条整段的话排到列表后面。
+     用 order 而不是复制一份 DOM：桌面端读法仍是"说清楚机制再给列表"。 */
+  .snap-page > .snap-strip { order: 2; }
+  .snap-page > .snap-list { order: 3; }
+  .snap-page > .snap-actions { order: 4; }
+  /* 导入面板要跟着它那条触发行排在一起：不给 order 就按默认 0 跑到整页最前面，
+     手机上成了"还没看到有哪些档，先撞上一块上传框"。 */
+  .snap-page > .snap-import { order: 4; }
+  .snap-page > .note { order: 5; }
+  /* 一条日志最多占三行。引擎那种 1000 字的长行（Lua 堆栈、modconfig 转储）
+     单独一行就能把整屏占满——实测 390px 下它占 899px，第一屏只剩它自己。
+     折叠必须留"展开"的出口，所以按钮放在 .txt 外面：放进clamp里会被一起裁掉。 */
+  .logline .txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .logline.expanded .txt { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  .logline .row-more { white-space: nowrap; padding: 2px 0 0; }
+
+  .task-msg { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .task-msg.open { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  /* 一排数在 390px 下横着排会把"约还需 4 分钟"挤断行，折成两列正好一格一词；
+     阶段那句是整句中文，单独占满一行。 */
+  .dlstats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+  .dlstats .ds:first-child { grid-column: 1 / -1; }
+  /* 五个状态按钮在 390px 下正好挤成一行，类型下拉单独占一行——
+     排成两列的话"全部类型"会窄到只剩「全部…」。 */
+  .task-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .task-filters .seg { width: 100%; overflow-x: auto; }
+  .task-filters .seg button { flex: 1 0 auto; }
+  /* 手机上先看队列、再去提交：提交区是一块说明卡，排在列表后面。 */
+  .task-page > .task-submit { order: 4; }
+}
+
+/* ---- 空状态 / 骨架 ---- */
+.empty { text-align: center; padding: 26px 18px; color: var(--text-2); }
+.empty .e-ico { font-size: 26px; opacity: .5; }
+.empty .e-title { font-weight: 600; color: var(--text); margin: 6px 0 4px; }
+.empty .e-note { font-size: 12.5px; max-width: 520px; margin: 0 auto; }
+.sk { height: 12px; border-radius: 6px; background: var(--card-2); animation: shimmer 1.3s infinite;
+      background-size: 220% 100%;
+      background-image: linear-gradient(90deg, var(--card-2) 0%, var(--line) 50%, var(--card-2) 100%); }
+.err-box { border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--line));
+           background: var(--bad-soft); border-radius: var(--r-sm); padding: 10px 12px;
+           font-size: 12.5px; color: var(--text); }
+
+/* 卡头下面那一行"轴说明"：卡片是块级排布，不留这一档间距它会贴到线上。
+   格子说法和点数条不许被压扁——宁可换行，也不要"每 5 分钟一个点"截成半句。
+   两个名字说的是同一个控件：.ov-when 是总览「在线情况」那张的窗口行，
+   .tl-when 是「玩家管理」那条泳道的窗口行（#125 搬过去之后它自己带一枚选择器）。 */
+.ov-when, .tl-when { margin-bottom: 10px; }
+.ov-when .chip, .tl-when .chip { flex: 0 0 auto; }
+
+/* ---- 趋势小图：内联 SVG，不引图表库 ---- */
+/* 图场（画线的那块）单独一层：刻度数字是 HTML，得和 SVG 里的横线共用一个定位父级。 */
+.spark-field { position: relative; height: 118px; padding-left: 32px; }
+.spark { width: 100%; height: 100%; display: block; }
+.spark .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.spark .area { fill: var(--accent); opacity: .14; }
+.spark .grid { stroke: var(--hair); stroke-width: 1; }
+/* 轴标签提到 12px 后，19px 那一格放不下三位数的刻度；整格放宽到 28px，
+   .spark-field 的 padding-left 同步让到 32px，刻度才不会被裁掉半个字。 */
+.spark-axis { position: absolute; left: 0; width: 28px; text-align: right; transform: translateY(50%);
+              font-family: var(--font-mono); font-size: 12px; line-height: 1; color: var(--text-3); }
+/* 采样点不够时的占位：矮、虚线，明确"这里还没有内容"，不像一块坏掉的图。 */
+.spark-empty { height: 44px; display: grid; place-items: center; border: 1px dashed var(--line);
+               border-radius: var(--r-sm); color: var(--text-3); font-size: 12px; }
+/* 这张图的高度是定值（2026-11-05 #123 用户："这个变得太大了，拉长太多了"）。
+   #119 那套 grow-tall 的前提是右列还压着第二张卡，剩余高度两张分摊；#122 把泳道卡
+   挪去横跨整幅之后，整行剩余高度全砸在这一张图上，实测 ultra 档图场从 118 被拉到 536——
+   同一份采样点竖向放大，读不出新东西。拉高本身不是错，错在没有别的东西跟着一起长。
+   纵轴照旧保留：0 起点 + 整人数刻度 + 一格一条横线，180 这一档也读得出"这些人落在哪一档"。 */
+.card.ov-trend .spark-field { height: 180px; }
+
+/* ---- 右列第二张卡「行为构成」（#124）----
+   这一张是那一列里"跟着长"的那一张：卡本身 flex:1 吃掉整行富余，行与行之间用
+   flex-grow 摊开（每行最高 44px），所以底边能压在左边房间卡那条底线上，而上面那张
+   图的图场一寸都不涨。富余大到行高顶了上限还剩一点时，那一点点留在最后一行下面——
+   它落在卡里，但卡里有内容压着上下两头，不是 #123 那种"图下面一大片空"。 */
+.card.ov-trend { flex: 0 0 auto; }
+.card.ov-behaviour { flex: 1 1 auto; display: flex; flex-direction: column; }
+.ov-behaviour .bh-list { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; }
+.ov-behaviour .bh-line { display: grid; grid-template-columns: 92px minmax(0, 1fr) 34px;
+                         align-items: center; gap: 10px; flex: 1 1 auto; max-height: 44px;
+                         font-size: 12.5px; }
+.ov-behaviour .bh-k { display: flex; align-items: center; gap: 7px; min-width: 0;
+                      color: var(--text-2); white-space: nowrap; }
+.ov-behaviour .bh-k i { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto;
+                        background: var(--page-accent); }
+.ov-behaviour .bh-bar { position: relative; height: 10px; border-radius: 3px; overflow: hidden;
+                        background: color-mix(in srgb, var(--page-accent) 18%, transparent); }
+.ov-behaviour .bh-bar b { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px;
+                          background: var(--page-accent); }
+.ov-behaviour .bh-v { text-align: right; color: var(--text);
+                      font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* 五档各占一色，且死亡/幽灵/复活三档和下面时间线上那三个圆点是同一批语义色。 */
+.ov-behaviour .bh-bad { --page-accent: var(--bad); }
+.ov-behaviour .bh-warn { --page-accent: var(--warn); }
+.ov-behaviour .bh-ok { --page-accent: var(--ok); }
+.ov-behaviour .bh-azure { --page-accent: var(--h-azure); }
+.ov-behaviour .bh-slate { --page-accent: var(--h-slate); }
+/* 空态那一块在拉伸出来的卡里靠上会显得像坏了：让它垂直居中，上下留白对称。 */
+.ov-behaviour > .empty { margin: auto 0; }
+
+/* ---- 细节排布 ---- */
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px; }
+.kv dt { color: var(--text-3); }
+.kv dd { margin: 0; word-break: break-word; }
+
+/* ---- 首屏"下一步"清单 ----
+   一行一件事：左边一颗彩色图标块说明这是哪类事，中间一句话说明现状，右边一个按钮
+   直接落到能改它的地方。参考项目把这类提示做成一堆纯文字链接，窄屏一点就偏；
+   这里整行按"图标 / 话 / 按钮"三段排，手机上话占满、按钮换到第二行且靠右，
+   拇指落在屏幕右下，不用横着够。 */
+.steps-list { display: flex; flex-direction: column; }
+.step-row { display: flex; align-items: center; gap: 10px; padding: 10px 0;
+            border-top: 1px solid var(--line-soft); }
+.step-row:first-child { border-top: 0; padding-top: 0; }
+.step-row p { margin: 0; font-size: var(--t-sm); color: var(--text-2); line-height: 1.5; }
+.step-row.ok p { color: var(--text-3); }
+.step-row .btn { flex: 0 0 auto; }
+.next-steps { padding-top: 14px; }
+.next-steps .card-head { margin-bottom: 12px; }
+/* 一条待办都没有时，页顶这张卡收成一行：卡头整块不画，只留那句"都齐了"。
+   有待办时自动摊回整张卡——正常状态不为它白占首屏一整块（2026-11-09 用户拍板）。 */
+.next-steps.is-quiet { padding-top: 9px; padding-bottom: 9px; }
+.next-steps.is-quiet .step-row.ok { padding: 0; border-top: 0; }
+/* 核对时间和"重新核对"绑成一组，窄屏折行时一起下去，不留在原位各占一行。 */
+.next-steps .head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+                            margin-left: auto; }
+@media (max-width: 560px) {
+  .step-row { flex-wrap: wrap; }
+  .step-row p { flex: 1 1 0; min-width: 0; }
+  .step-row .btn { margin-left: auto; }
+}
+
+/* ---- 运行状态：三颗占比表盘 + 一列绝对量 ----
+   表盘是这一版新加的控件形状。同一屏里 CPU / 内存 / 磁盘如果都做成横条，
+   三条一样长的轨道看不出是三件事；圆环把数字顶到中心，颜色只负责"紧不紧张"。
+   没有可信数字的那一轮（面板刚起来，还没法作差）不画弧、圆心写"—"，
+   下面那行写接口给的那句中文——"占用 0%"会被当成结论，说明不会。 */
+/* 表盘 + 右侧那列绝对量：这一对并排是这一栏的读法（左边看紧不紧张，右边看绝对量），
+   2026-11-04 用户第二次指出"明细表压在三个扇形图下面，排版很奇怪"，所以它不许随便折到下面。
+   折行只看"这一栏自己有多宽"（不看视口）：三枚环按内容要 458px（说明文字各留 142px、环间距 16px），
+   明细表至少 220px 才谈得上并排（处理器型号那一格实测 197px 放两行），
+   两个加起来 458 + 18 + 220 = 696——这一栏的左半少于 696 就宁可整块落到表盘下面。
+   2026-11-09：右半幅那张「未结束的任务」整张下掉，.host-row 改成单列，这一张卡吃满整幅
+   （1440 实测行宽 1168、卡内宽约 1140）。两半按 flex 1 1 均分，环那一段不再定宽死守 458，
+   明细表也不再被压到 220 的底线；窄屏放不下时由 flex-wrap 自己折到环下面，这是卡内折行，
+   不再是"整行拆成上下两张卡"。 */
+.host-body { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
+.host-body > .host-rings { flex: 1 1 460px; }
+.host-body > .host-kv { flex: 1 1 260px; min-width: 0; }
+/* 这一条卡片里表盘那一段比文字行高得多：卡头默认那点下边距会让"这台机器"那行
+   像是压在表盘上，所以给它多留一截（见下面 .host-row .card-head）。 */
+.host-rings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; }
+/* dl 的浏览器默认上边距是 1em，在这张 12.5px 的表里就是 12.5px——它把右侧那列整块推下去，
+   第一行比左边的表盘低一截（实测 rect：表盘顶 321 / 表格顶 333）。详情块里那颗"世界号"
+   和第一行也是同一个毛病（924 vs 937）。两处都归零，同一行内的两块才从同一条顶边起排。 */
+.host-kv { align-content: start; margin: 0; }
+.host-kv dd { display: flex; align-items: baseline; gap: 6px; }
+.host-kv dd.is-warn { color: var(--warn); }
+
+.ring { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.ring-dial { position: relative; width: 104px; height: 104px; }
+.ring-svg { width: 104px; height: 104px; display: block; }
+.ring-track { fill: none; stroke: var(--line); stroke-width: 7; }
+.ring-fill { fill: none; stroke: var(--idle); stroke-width: 7; stroke-linecap: round;
+             transition: stroke-dasharray .45s ease, stroke .2s ease; }
+.ring.ok .ring-fill { stroke: var(--ok); }
+.ring.warn .ring-fill { stroke: var(--warn); }
+.ring.bad .ring-fill { stroke: var(--bad); }
+.ring-mid { position: absolute; inset: 0; display: grid; place-content: center; gap: 1px; text-align: center; }
+.ring-head { font-size: var(--t-xl); font-weight: 680; letter-spacing: -.02em;
+             font-variant-numeric: tabular-nums; }
+.ring.warn .ring-head { color: var(--warn); }
+.ring.bad .ring-head { color: var(--bad); }
+.ring-sub { font-size: 12px; color: var(--text-3); }
+/* 名字后面带说明气泡的那一枚（现在是「存档盘」）会高出 5px：气泡按钮自带 padding，
+   它撑高的不是自己那一行，而是把下面的说明文字整行顶下去，三枚环于是各排各的
+   （实测说明文字顶边 450 / 450 / 455）。给这一行一个统一高度，让三枚在同一线上。 */
+.ring-label { display: flex; align-items: center; gap: 5px; font-size: var(--t-sm);
+              font-weight: 600; color: var(--text-2); min-height: 24px; }
+/* 说明文字按两行留位：内存那一行天生两行（"已用 … / 共 … · 交换 …"），
+   不留位的话三枚的底部一高一低（实测 466 / 482 / 471）。
+   176 → 158 → 142 都是给明细表腾宽度：这一整段按内容宽 = 3×说明文字 + 2×环间距，
+   158 那档是 510px，#115 把右栏定成"和下方那一列齐宽"之后左栏只剩 748，
+   收到 142（配环间距 16）是 458px，明细表还能留 272——实测两行的型号那一格没变窄。 */
+.ring-note { font-size: 12px; color: var(--text-3); text-align: center;
+             max-width: 142px; line-height: 1.45; min-height: 32px; }
+/* 760 归并进 900（平板档）：761~900 也把表盘收到 82px，三枚仍一行排满，
+   比原来 104px 更不容易折成两行半，不会出现竖排窄列。 */
+@media (max-width: 900px) {
+  .host-rings { gap: 6px 8px; }
+  /* 三颗并排是这一栏的读法（一屏看完这台机器），手机上不能因为表盘太大折成两行半：
+     把表盘收到 82px，说明文字放开整格宽度，三颗仍然一行排满。 */
+  .ring-dial, .ring-svg { width: 82px; height: 82px; }
+  .ring-note { max-width: none; }
+}
+
+/* ---- 顶部这一档：只剩「这台机器」一张卡，横跨整幅（2026-11-09）----
+   原来并排的「未结束的任务」整张下掉：它只在恰好有任务在跑时才有内容，平时是一整块
+   空态占掉右半幅；顶栏那枚「未结束任务」实时计数、一键直达任务中心，那里本来就有
+   进度条、字节明细和提交时间，总览再列一遍等于同一件事说两遍。
+   #105~#117 那几代调的都是「两半怎么隔开」（竖线 → 留白 → 拆成两张卡），
+   层级问题随右卡一起退场：这一行现在只有一张卡，列定义写成单列，缝也不复存在。
+   单列要写在 .grid-wide（2fr 1fr）之后才覆盖得住；@media 1080 那条也是单列，不冲突。 */
+.host-row { grid-template-columns: minmax(0, 1fr); }
+.host-row .head-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; }
+/* 表盘那一段比文字行高得多：卡头默认那点下边距会让「这台机器」那行像是压在表盘上。 */
+.host-row .card-head { margin-bottom: 14px; }
+/* 命名容器仍留着：页面别处的 @container 只认各自的卡片，这一层不参与它们的匹配。
+   已没有「整行拆成上下两张」的容器查询——卡内放不下时由 .host-body 的 flex-wrap 自己折，
+   那是「三枚环 + 明细表」这一排内部的折行，不是两张卡重排。 */
+.host-wrap { container-type: inline-size; container-name: hostrow; }
+
+/* ---- 玩家在线时间线（横跨整幅的一张卡；时间窗和上面那张「在线情况」共用）----
+   两层（2026-11-05 #119 用户在三个方案里选定乙）：
+     摘要条 = 每人一段、段宽按这一窗里的在场时长占比，永远 28px，回答"谁待得最久"；
+     泳道   = 还是每人一条轨道，但整块最多 260px、行高由条数分出来，回答"谁在什么时候来的"。
+   以前是一人一行行高写死，这张卡的高度等于人数乘行高——满房时自己长到四百多 px，
+   右列底部跟着忽上忽下。一张图的高度不该由"今天来了几个人"决定，所以给它加了上限。
+   2026-11-05 #122 这张卡从右列里挪出来横跨整幅，并把上面那两个数字一起抬了一档：
+   它读的是 24 小时里几十次进出，宽度就是分辨率——右列那一档轨道只有 430px，1 px ≈ 3 分钟，
+   两次隔了四分钟的进出必然贴在一起，而 12px 那一档薄轨道上的记号点认不出颜色。
+   横轴只有接口给的那一条 from/to：段落位置全部按它折算百分比，
+   轨道上三条发丝竖线就是 25% / 50% / 75%，和轴上的标签一一对齐。
+   三种段落形状各表一件事（不只看颜色）：实心绿=这会儿还在，半透明=这一段已经结束，
+   左沿虚线=这一段没有起点记录、从窗口边界画起。 */
+.tl2 { display: flex; flex-direction: column; gap: 10px; }
+.tl2-stack { display: flex; gap: 2px; height: 28px; border-radius: 9px; overflow: hidden;
+  background: color-mix(in srgb, var(--card-2) 70%, transparent); }
+.tl2-stack i { display: block; min-width: 2px; }
+.tl2-total { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+/* 每个人的时长做成文字段，跟在合计那行下面（原来它们在泳道右边成一列，
+   那一列把轴和泳道撑成两个宽度，最后一枚刻度就不对着横条的终点了）。
+   前面那枚点复用摘要条那一段的颜色，读者不用记名字也能对上。 */
+.tl2-sums { display: flex; gap: 4px 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+.tl2-sums span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.tl2-sums i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; }
+.tl2-sums .rest i { background: color-mix(in srgb, var(--h-slate) 42%, transparent); }
+/* 泳道块不设 max-height：行高由 JS 按条数从 260px 预算里分（.tools 里那份对账量过整块高度），
+   这里再设一道上限只会在算差半个像素时把最后一条无声裁掉。 */
+.tl2-lanes { display: flex; flex-direction: column; gap: 4px; }
+/* 名字那一栏整幅那一档给到 110px（轨道仍然剩 1600px 以上），窄屏 560 以下收回 76px：
+   那一档轨道本来就只剩一百多 px，名字再宽就是把段挤出轨道。
+   轴那一行和泳道用的是**同一份两列定义**，所以轨道必然同宽同起点（2026-11-05 之前这里有第三列，
+   轴上那一格是空的、泳道上写时长，两行的轨道就差了整整一列的宽度）。 */
+.tl2 .tl-row { grid-template-columns: minmax(0, 110px) minmax(0, 1fr); }
+@media (max-width: 560px) {
+  .tl2 .tl-row { grid-template-columns: minmax(0, 76px) minmax(0, 1fr); }
+}
+.tl2 .tl-name { font-size: 12.5px; line-height: 1.2; }
+.tl2-lanes .tl-span { top: 2px; bottom: 2px; }
+/* "其他 N 人"那条：几个人的段逐段画在同一条轨道上，叠着的地方自然加深，
+   说的是"这段时间里这几个人中有人"，不是"人更多所以更红"。 */
+.tl2-lanes .tl-span.rest { background: color-mix(in srgb, var(--h-slate) 42%, transparent); }
+.tl2-lanes .tl-row.other .tl-name { color: var(--text-3); }
+/* 泳道里的记号点跟图例同大小（7px）：最薄那一档（12 条）轨道也有 14px 高，
+   以前 5px 那档是给 8px 轨道留的，预算抬起来之后不再需要。 */
+.tl-row { display: grid; grid-template-columns: minmax(0, 92px) minmax(0, 1fr);
+          align-items: center; gap: 8px; }
+.tl-who { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.tl-name { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-live { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+.tl-track { position: relative; height: 15px; border-radius: 4px; overflow: hidden; min-width: 0;
+  background-color: color-mix(in srgb, var(--card-2) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+  background-image: linear-gradient(var(--hair), var(--hair)), linear-gradient(var(--hair), var(--hair)),
+                    linear-gradient(var(--hair), var(--hair));
+  background-size: 1px 100%; background-repeat: no-repeat;
+  background-position: 25% 0, 50% 0, 75% 0; }
+.tl-span { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; min-width: 2px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.tl-span.open { background: color-mix(in srgb, var(--ok) 78%, transparent); }
+.tl-span.clip { border-left: 2px dotted color-mix(in srgb, var(--text-2) 75%, transparent); }
+.tl-mark { position: absolute; top: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%;
+  transform: translateY(-50%); box-shadow: 0 0 0 1.5px var(--card); }
+.tl-mark.death { background: var(--bad); }
+.tl-mark.ghost { background: var(--warn); }
+.tl-mark.revive { background: var(--ok); }
+
+/* 轴那一行不给底色和竖线，只留标签；首尾两枚往轨内收，免得标签被卡片边裁掉半个字。 */
+.tl-axis .tl-track { height: 16px; background: none; box-shadow: none; overflow: visible; }
+.tl-tick { position: absolute; top: 0; font-family: var(--font-mono); font-size: 12px;
+  color: var(--text-3); white-space: nowrap; }
+.tl-tick.at-mid { transform: translateX(-50%); }
+.tl-tick.at-end { transform: translateX(-100%); }
+
+.tl-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px;
+  font-size: 12px; color: var(--text-3); }
+.tl-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.tl-legend .k { width: 13px; height: 7px; border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.tl-legend .k.open { background: color-mix(in srgb, var(--ok) 78%, transparent); }
+.tl-legend .k.clip { border-left: 2px dotted color-mix(in srgb, var(--text-2) 75%, transparent); }
+.tl-legend .d { width: 7px; height: 7px; border-radius: 50%; }
+.tl-legend .d.death { background: var(--bad); }
+.tl-legend .d.ghost { background: var(--warn); }
+.tl-legend .d.revive { background: var(--ok); }
+
+.shard-row { display: flex; align-items: center; gap: 10px; padding: 9px 0;
+             border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+.shard-row:first-of-type { border-top: 0; }
+.shard-name { font-weight: 600; min-width: 52px; }
+.shard-note { font-size: 12px; color: var(--text-2); flex-basis: 100%; padding-left: 0; }
+.shard-note.bad { color: var(--bad); }
+/* "这一刻读不到"而不是"坏了"：没人时引擎自己暂停、进程根本没起来，
+   这两种都不该用报警色——红色会让人去找一个不存在的故障。 */
+.shard-note.calm { color: var(--text-3); }
+/* 同一句原因在列表里每行都重复时：行内只留短名，全文进气泡（快照页）。 */
+.bad-note { gap: 6px; align-items: center; color: var(--bad); font-size: 12px; }
+
+/* ---- 总览页：世界行下面自己摊开的玩家实况 ----
+   原来这一块借的是 .shard-note 的样子（11.5px、贴在行底下），摊开以后读起来像
+   一句补充说明，而不是"这一间此刻站着谁"。给它一层自己的面：边框 + 比卡片深一档的底，
+   于是"有人进来了"在屏上有一个看得见的结果。
+   2026-11-04 这一格里原来还叠着一张五行明细表（要点「详情」才出现），那一档整块拆掉了：
+   五行里四行的数世界行上本来就摆着，唯一独有的占用做成了行上的一枚胶囊。 */
+.shard-detail { flex-basis: 100%; margin-top: 9px; padding: 12px 13px;
+                border: 1px solid var(--line-soft); border-radius: var(--r-md);
+                background: color-mix(in srgb, var(--card-2) 60%, transparent);
+                /* 兜底：人数极多且名单已展开时别让这一格无限往下长，把房间卡撑到和
+                   右列两张图差一大截。5~8 人那条路径一屏读得完，用不到它。 */
+                max-height: 420px; overflow-y: auto; }
+/* 4 人以内才用富卡：.grid-cards 那档 320px 的下限在 768 宽时只排得下一列，
+   卡竖着叠起来就把左右两列拉得一边高一边矮，所以按内容把下限收到 200px。
+   5 人以上改走 .player-roster（见下），不再靠压窄卡片硬塞。 */
+.detail-players { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.detail-players .stat { padding: 8px 10px 8px 12px; }
+/* 三围一行一个（2026-11-04 用户提的）：上一版并排是想让人一眼看出"谁快饿死了"，
+   但三条都短的时候，并排只能看出长短，看不出这一条比另一个人的同一条少多少——
+   竖着排才是拿同一种量在人之间比。紧凑靠行高压，不靠并排。 */
+.player-bars { display: grid; gap: 3px; margin-top: 4px; grid-template-columns: minmax(0, 1fr); }
+
+/* 5 人以上：一行一人（views/overview.js 的 playerMode）。单条约 34px，六人一屏读完，
+   不再靠 420px 把后半截人藏起来。三围是同一行里三段等宽细条，每行位置对齐，
+   纵向仍能在人与人之间比同一条；精确数值、坐标和物品数收进悬停。 */
+.player-roster { display: grid; gap: 4px; }
+.player-roster.is-expanded { margin-top: 8px; }
+.player-line { display: grid; align-items: center; gap: 8px; min-height: 32px;
+               grid-template-columns: 26px minmax(0, 1fr) 76px 96px;
+               padding: 4px 8px; border: 1px solid var(--line-soft);
+               border-radius: var(--r-sm); background: var(--card-2); }
+.player-line:hover { border-color: var(--line); }
+.player-line .player-avatar.sm { width: 26px; height: 26px; font-size: 11px; }
+.pl-id { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pl-id .ellipsis { min-width: 0; }
+.pl-char { color: var(--text-3); font-size: 12px; }
+.pl-vitals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+.v-track { height: 5px; border-radius: 3px; overflow: hidden;
+           background: color-mix(in srgb, var(--text-3) 22%, transparent); }
+.v-fill { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.v-fill.v-ok { background: var(--ok); }
+.v-fill.v-warn { background: var(--warn); }
+/* 助手没采到这个组件：淡底全宽，不是 0%（那会读成"快饿死了"）。 */
+.v-fill.is-unknown { opacity: .16; }
+/* 9 人以上：先只报人数，名单点开才铺开。 */
+.roster-summary { display: flex; align-items: center; gap: 8px; width: 100%;
+                  padding: 8px 10px; font: inherit; font-size: 13px; color: var(--text);
+                  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+                  background: var(--card-2); cursor: pointer; }
+.roster-summary:hover { border-color: var(--line); }
+.roster-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.roster-summary .ico-tile { flex: 0 0 auto; }
+@media (max-width: 560px) {
+  /* 手机上把角色名那列让出来：名字 + 三围比"角色叫沃特"更要紧，角色仍在整行悬停里。 */
+  .player-line { grid-template-columns: 26px minmax(0, 1fr) 66px; gap: 6px; }
+  .pl-char { display: none; }
+}
+
+/* ---- 模组列表的行 ----
+   一行模组在窄屏上会长成"名字+开关 一行、目录+工坊 一行、依赖 一行、展开的配置 一大块"，
+   不加边框的话四行会糊成一坨，肉眼分不出哪几行说的是同一个模组；行与行之间也分不开。
+   所以 mod-row 自带一圈浅色描边，drawer（展开的配置区）用更深的底色压进来一格。 */
+.mod-row { border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 8px 10px;
+           background: var(--card); }
+.mod-row:hover { border-color: var(--line); }
+.mod-main { gap: 6px; min-width: 0; }
+.mod-meta { gap: 5px; flex-wrap: wrap; font-size: 12px; color: var(--text-3); }
+.mod-meta .chip { font-size: 12px; padding: 1px 6px; }
+
+/* ---- 工坊检索的卡片网格 ----
+   一行几张由容器宽度定，卡片之间靠预览图分块而不是靠描边：图本身就是这张卡的标题，
+   文字是补充。手机上留两列——一屏能扫过四个模组，比一行一张往下滑快得多，
+   所以卡片的最小宽度按 360px 那档算（(360-24-24-10)/2 ≈ 150）。
+   没图的行（磁盘来源、图床挂了）用底色＋首字占位，颜色和角色头像同一套算法，
+   同一个模组在哪个列表都是同一个颜色。 */
+.mod-cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.mod-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+            border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--card);
+            transition: border-color var(--speed), box-shadow var(--speed), transform var(--speed); }
+.mod-card:hover { border-color: var(--line); box-shadow: var(--shadow); transform: translateY(-1px); }
+
+/* 封面盒按图本来的形状开：实测抓的 12 张工坊预览图里 11 张是正方形（256²、512²、
+   1000² 都有），只有一张 278x318。以前这里写的是 460x215 加 object-fit: cover，
+   等于把一张方图裁成横幅——用户说的"图片好像是被裁出来的一部分"就是这一条。
+   也试过让 CDN 出方图（&imw=&imh=&impolicy=），实测一律 404，
+   工坊不给这种缩放参数，所以只能按原图形状摆。
+   contain 而不是 cover：多出来的那点上下留白是真的留白，裁掉的部分是再也看不见的。 */
+.mod-cover { position: relative; aspect-ratio: 1 / 1; flex: 0 0 auto; overflow: hidden; }
+.mod-cover-img { position: absolute; inset: 0; width: 100%; height: 100%;
+                 object-fit: contain; display: block; }
+.mod-cover-ph { position: absolute; inset: 0; display: grid; place-items: center;
+                color: #fff; font-size: 21px; font-weight: 700; letter-spacing: 1px;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+/* 状态标记压在图片下沿那条渐变上：工坊图有将近一半是浅色的，
+   直接浮在上面时浅色 badge 会跟着一起看不见。::after 是最后生成的，
+   所以标记要盖住它得给 z-index。 */
+.mod-cover::after { content: ""; position: absolute; inset: auto 0 0 0; height: 52%;
+                    background: linear-gradient(to top, rgba(6, 9, 15, .74), rgba(6, 9, 15, 0)); }
+.mod-cover-state { position: absolute; left: 7px; right: 7px; bottom: 7px; z-index: 1; }
+.mod-cover-state .badge { max-width: 100%; }
+
+.mod-card-body { display: flex; flex-direction: column; gap: 5px; padding: 9px 10px 8px;
+                 flex: 1 1 auto; min-width: 0; }
+.mod-card-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.35;
+                 word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2;
+                 -webkit-box-orient: vertical; overflow: hidden; }
+.mod-card-meta { font-size: 12px; color: var(--text-3); white-space: nowrap;
+                 overflow: hidden; text-overflow: ellipsis; }
+/* 订阅数热度条：条的长短比高低，条边那一格写订阅人数（见 mods.js 的 heat()）。
+   条长按对数折，所以短不等于没人用。
+   数字那一格必须是固定宽度：它按内容伸缩的话，同一页里每张卡的条可用长度就不一样，
+   "谁的条更长"这个唯一的作用当场作废——实测 850 万的条比 1044.5 万的长就是这么来的。 */
+.mod-heat { display: flex; align-items: center; gap: 7px; }
+.mod-heat-bar { flex: 1 1 auto; min-width: 0; height: 4px; border-radius: 999px;
+                background: var(--line-soft); overflow: hidden; }
+.mod-heat-bar i { display: block; height: 100%; border-radius: 999px;
+                  background: linear-gradient(90deg, var(--h-cyan), var(--h-amber)); }
+.mod-heat-num { flex: 0 0 54px; text-align: right; white-space: nowrap;
+                font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+
+/* ---- 收藏数与好评率 ----
+   这两个数和订阅数是三件不同的事，各占一格，不并成"热度"那种含糊说法：
+   收藏是工坊上那颗星按下去的次数（实测 Epic Healthbar 订阅 372 万、收藏 11.8 万），
+   好评率是投票结果，必须带投票人数才有意义——只有 98% 没有分母，
+   分不清是 2 万人评的还是 20 人评的。没投过票的那一格整个不画（见 mods.js 的 rate()），
+   0 个人评分画一星是编出来的。 */
+.mod-rate { display: flex; align-items: center; gap: 10px; font-size: 12px;
+            font-family: var(--font-mono); color: var(--text-3); min-width: 0; }
+.mod-rate span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.mod-rate .ic { color: var(--h-amber); }
+.mod-rate .pct { color: var(--text-2); }
+
+/* ---- 分类那一排 ----
+   14 枚加"不限分类"，桌面能容下就换行，手机上换成横向滚动：让它折成七行的话，
+   第一屏就只剩分类没有模组了。选中的那枚用主题色实心，靠颜色而不是靠"加粗+边框"
+   区分（色板数量和取值数量对得上，见 .mod-cat.on）。
+   数字是"这一屏里这一类有几条"，口径由后端决定，可能整排没有数字（见 mods.js 的 countsKnown），
+   所以这一格必须是可缺省的：没有时按钮只剩名字，宽度自然收一下就行。 */
+.mod-cats { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.mod-cats .lab { font-size: 12px; color: var(--text-3); }
+.mod-cat { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+           display: inline-flex; align-items: center; gap: 5px;
+           color: var(--text-2); background: var(--elev); box-shadow: inset 0 0 0 1px var(--line-soft);
+           transition: color var(--speed), background var(--speed), box-shadow var(--speed); }
+.mod-cat:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.mod-cat.on { color: #fff; font-weight: 600; background: var(--page-accent);
+              box-shadow: inset 0 0 0 1px var(--page-accent); }
+.mod-cat .n { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+.mod-cat.on .n { color: rgba(255, 255, 255, .82); }
+/* 640 归并进 900（平板档），这一条是合并里唯一要小心"回退"的：
+   原来 561~640 是横向滚动带、<=560 也是，而 641~900 折行。若并进 560，
+   561~640 会退回"十四枚分类折成七行，把模组挤出第一屏"。
+   放进 900 档等价于对 (560, 900] 补了一条覆盖规则：561~640 保持原样不回退，
+   641~900 顺带从折行改成横向滚，是收紧而不是放松。 */
+@media (max-width: 900px) {
+  .mod-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px;
+              scrollbar-width: none; }
+  .mod-cats::-webkit-scrollbar { display: none; }
+  .mod-cats .lab { flex: 0 0 auto; }
+  .mod-cat { flex: 0 0 auto; padding: 8px 12px; }
+}
+
+.mod-card-warns { display: flex; gap: 5px; flex-wrap: wrap; }
+.mod-warn { font-size: 12px; padding: 1px 7px; border-radius: 999px; color: var(--warn);
+            background: var(--warn-soft);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 38%, transparent); }
+/* 两个按钮放得下就并排，放不下就各自一行（.btn 在窄屏上 min-height 36，
+   150px 的卡里"取消登记＋详细信息"放不下，宁可高一点也不要按错）。 */
+.mod-card-foot { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 10px 10px; }
+.mod-card-foot .btn { flex: 1 1 auto; }
+
+.mod-tags { gap: 5px; flex-wrap: wrap; }
+.mod-tag { font-size: 12px; padding: 1px 7px; border-radius: 999px; color: var(--text-2);
+           background: var(--elev); box-shadow: inset 0 0 0 1px var(--line-soft); }
+
+/* 宽卡才有余量放说明正文：150px 的卡里再来两行小字，一屏就只剩两张卡了。
+   窄屏要看说明就点"详细信息"。 */
+.mod-card-desc { display: none; }
+
+/* 一行一张的模组卡（下载页与配置页）：封面在左、正文在右。
+   检索页那一排是小方卡——它的任务是"扫名字认图"；而这两屏每一行都带着开关、
+   目录名、依赖这些长内容，压成 150px 的方卡会一行都放不下，所以卡片横着长。
+   但封面格用的是同一个 .mod-cover（含 contain 那条），色块兜底也是同一套算法，
+   所以同一个模组在三个屏上是同一张图、同一个颜色（见 js/modcard.js）。 */
+.mod-line { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 11px;
+            padding: 10px; border: 1px solid var(--line-soft); border-radius: var(--r-md);
+            background: var(--card); }
+.mod-line:hover { border-color: var(--line); }
+.mod-line .mod-cover { width: 78px; }
+.mod-line .mod-cover-ph { font-size: 17px; }
+.mod-line-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mod-line-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mod-line-name { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.35;
+                 word-break: break-word; }
+.mod-lines { display: grid; gap: 8px; }
+/* 配置抽屉是同一张卡的一部分，得压在封面和正文底下整行铺开：
+   不给它 grid-column 的话它会被塞进第二列，抽屉里那些表单就只剩一半宽度了。 */
+.mod-line .drawer { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  /* 手机上封面收到 60px：再宽的话一行正文只剩 90px，目录名 workshop-123456780 就断了。 */
+  .mod-line { grid-template-columns: 60px minmax(0, 1fr); gap: 9px; padding: 9px; }
+  .mod-line .mod-cover { width: 60px; }
+}
+
+/* ---- 第 3 步「给这个房间开」：按开着 / 没开分栏 ----
+   这一屏唯一会变的事实就是开关，混在一列里时用户得逐行读九个开关才知道
+   "这个世界到底装了啥"。分栏把它变成扫一眼的事，所以标题刻意比 .card-head 轻一档：
+   只有一枚现成的小圆点（和总览页"在跑/没跑"同一个视觉语言）加一句口径，不加边框底色。
+   空的那一栏由 JS 整个不画，这里不需要"暂无"的样式。 */
+.mod-group-head { display: flex; align-items: center; gap: 8px; padding: 4px 2px 0;
+                  font-size: 12px; color: var(--text-3); }
+.mod-group-head b { font-size: 13px; color: var(--text); }
+.mod-group-head .muted { font-size: 12px; }
+/* 窄一档的封面：这一屏的图只用来认脸，不参与任何判断。
+   左边框先占成透明再按状态上色——开着和没开的行挨在一起时，
+   边框宽度不一样会让正文左右错开两像素，扫一屏就变成锯齿。 */
+.mod-line.sm { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 9px 10px;
+               border-left: 3px solid transparent; }
+.mod-line.sm .mod-cover { width: 52px; }
+.mod-line.sm .mod-cover-ph { font-size: 14px; }
+.mod-line.sm.is-on { border-left-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+.mod-line-sum { font-size: 12px; color: var(--text-3); }
+@media (max-width: 560px) {
+  .mod-line.sm { grid-template-columns: 46px minmax(0, 1fr); gap: 9px; }
+  .mod-line.sm .mod-cover { width: 46px; }
+  .mod-line.sm .mod-cover-ph { font-size: 12px; }
+}
+.drawer-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* 详情层：借用 .dialog 的尺寸和滚动，只把上边让给封面图。 */
+.dialog.mod-detail { padding: 0; }
+.mod-detail-cover { position: relative; aspect-ratio: 1 / 1; max-height: 300px; overflow: hidden; }
+.mod-detail-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; }
+.mod-detail-head h3 { margin: 0; font-size: 15.5px; line-height: 1.3; }
+.mod-detail-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.6;
+                   word-break: break-word; max-height: 26vh; overflow: auto; }
+
+/* 一行里的操作区（工坊页 / 取消订阅 / 删除）。它跟着名字那行走，但必须自己贴右边界：
+   名字长短不一，不 margin-left:auto 的话按钮会挤在名字尾巴后面，扫一屏时找不到入口。 */
+.mod-line-acts { margin-left: auto; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+/* "开着它的世界：Cluster_1 / Master" 那一行。它决定用户敢不敢点删除，所以不能只藏在悬停里。 */
+.mod-line-used { font-size: 12px; color: var(--text-3); }
+@media (max-width: 560px) {
+  /* 手机上操作区换行到名字下面整行铺开，不然三个链接挤在名字右边按不准。 */
+  .mod-line-acts { margin-left: 0; flex-basis: 100%; gap: 14px; }
+}
+
+/* 卡变宽了才加一档最小宽度：卡片数量跟着容器走，而不是把图放大到糊。
+   到 860 这一档起才补上说明正文——那时一张卡有 212px，两行小字不会把卡撑变形。 */
+@container (min-width: 560px) {
+  .mod-cards { grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); }
+}
+@container (min-width: 860px) {
+  .mod-cards { grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 12px; }
+  .mod-card-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+                   overflow: hidden; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+}
+/* 待下载那张卡上的"为什么没有名字"。不能用 .mod-card-desc：那条在窄屏是 display:none，
+   而这句恰恰是窄屏上最需要看见的——不写它，用户只看到一个"还没读到这个名字"。 */
+.mod-card-note { font-size: 12px; line-height: 1.5; color: var(--text-3); }
+.drawer { border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--card-2);
+          padding: 10px; margin-top: 8px; }
+.drawer-head { font-size: 12px; color: var(--text-2); align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.list-plain { list-style: none; margin: 0; padding: 0; }
+.list-plain > li { padding: 8px 0; border-top: 1px solid var(--line-soft); }
+.list-plain > li:first-child { border-top: 0; padding-top: 0; }
+
+.file-tree { font-family: var(--font-mono); font-size: 12px; max-height: 46vh; overflow: auto;
+             border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--elev); padding: 8px; }
+.file-tree .ft { display: flex; gap: 10px; padding: 2px 4px; justify-content: space-between; }
+.file-tree .ft:hover { background: var(--card-2); }
+.file-tree .ft .why { color: var(--text-3); font-family: var(--font-ui); font-size: 12px; text-align: right; }
+
+.section-title { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.section-title h2 { font-size: 14.5px; }
+.section-title .sub { font-size: 12px; color: var(--text-3); }
+
+/* ---- 分页 ----
+   只有"上一页 / 下一页"两个灰按钮时，用户既不知道一共多少页，也不能直接跳，
+   点了没反应还会怀疑是接口坏了（模组页上一版正是这样）。
+   页码条按"首页 … 当前±1 … 末页"取样，窄屏只留必要的一小截，其余横向滚而不是换行。 */
+.pager { display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-size: var(--t-sm);
+         color: var(--text-2); flex-wrap: wrap; }
+.pg-nums { display: flex; align-items: center; gap: 4px; overflow-x: auto; max-width: 100%;
+           padding-bottom: 2px; scrollbar-width: none; }
+.pg-nums::-webkit-scrollbar { display: none; }
+.pg-btn, .pg-num { display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+                   min-height: 32px; padding: 4px 10px; font: inherit; font-size: var(--t-sm);
+                   color: var(--text-2); background: var(--card); cursor: pointer;
+                   border: 1px solid var(--line); border-radius: var(--r-sm);
+                   transition: color var(--speed), border-color var(--speed), background var(--speed); }
+.pg-btn { flex: 0 0 auto; }
+.pg-btn:hover:not(:disabled), .pg-num:hover { color: var(--text); border-color: var(--text-3);
+                                               background: var(--card-2); }
+.pg-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pg-num { min-width: 32px; padding: 4px 8px; font-family: var(--font-mono); flex: 0 0 auto; }
+.pg-num.on { color: var(--text); font-weight: 600;
+             background: color-mix(in srgb, var(--page-accent) 17%, transparent);
+             border-color: color-mix(in srgb, var(--page-accent) 46%, transparent); }
+.pg-gap { padding: 0 2px; color: var(--text-3); flex: 0 0 auto; }
+.pg-total { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--text-3); flex: 0 0 auto; }
+/* 后端没给总数时（在线检索只能知道"还有没有下一页"）没有页码可列，只能报当前页。
+   这个类由 Pager 自己在没有页码时挂上，而不是用 :has() 去猜结构。 */
+.pg-fallback { display: none; font-size: var(--t-sm); color: var(--text-2); padding: 0 2px;
+               white-space: nowrap; }
+.pager.no-nums .pg-fallback { display: inline-flex; }
+@media (max-width: 560px) {
+  .pager { gap: 6px; }
+  .pg-btn span { display: none; }      /* 手机上两个箭头就够，"上一页/下一页"四个字挤掉了页码 */
+  .pg-btn { padding: 4px 8px; }
+}
+
+/* 开服向导的步骤条：编号圆点 + 连线，走过的打勾、点得回去。
+   原来那排胶囊只亮当前一个：看不出总共几步，也看不出第 1 步填的东西还能回去改。 */
+.stepper { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+.stepper .stp { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none;
+                font: inherit; font-size: 12.5px; color: var(--text-3); cursor: pointer; padding: 3px 0; }
+.stepper .stp + .stp::before { content: ""; width: 18px; height: 1px; background: var(--line); margin-right: 7px; }
+.stepper .stp .num { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+                     display: inline-flex; align-items: center; justify-content: center;
+                     font-family: var(--font-mono); font-size: 12px;
+                     border: 1px solid var(--line); background: var(--card); color: var(--text-3); }
+.stepper .stp.on { color: var(--text); font-weight: 600; }
+.stepper .stp.on .num { border-color: var(--accent); background: var(--accent); color: #fff; }
+.stepper .stp.done { color: var(--text-2); }
+.stepper .stp.done .num { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+/* 还没走到的那几步：虚线圈说"这条路在后面"，不是"这里坏了"。少了这条，
+   三态里只有两态有长相，没走到的和刚进页面的第 1 步看着一模一样。 */
+.stepper .stp.todo .num { border-style: dashed; }
+.stepper .stp:disabled { cursor: not-allowed; }
+.stepper .stp:not(:disabled):hover .num { border-color: var(--accent); }
+.stepper .stp-count { margin-left: auto; padding-left: 10px; font-size: 12px;
+                      color: var(--text-3); font-family: var(--font-mono); }
+
+/* ---- 世界设定的分组折叠 ----
+   一张表两百多项：手机上不收起就是两万像素的滚动，桌面端也是"滑到找不到自己在哪"。
+   用原生 details/summary 而不是自己写 v-show：键盘、VoiceOver、"展开/收起"的语义
+   浏览器全包了，面板只要负责记住哪几组开着。 */
+.g-tools { gap: 10px; font-size: 12px; align-items: baseline; }
+details.group { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card);
+                overflow: hidden; }
+details.group > summary.g-head { display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+                                 cursor: pointer; list-style: none; user-select: none; }
+details.group > summary.g-head::-webkit-details-marker { display: none; }
+details.group[open] > summary.g-head { border-bottom: 1px solid var(--line-soft); background: var(--card-2); }
+details.group > summary.g-head:hover { background: var(--card-2); }
+details.group .g-head b { font-size: 13.5px; }
+.g-chev { color: var(--text-3); font-size: 15px; line-height: 1; transition: transform var(--speed); }
+details.group[open] > .g-head .g-chev { transform: rotate(90deg); }
+.g-count { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); }
+.g-changed { font-size: 12px; color: var(--accent); font-family: var(--font-mono); }
+details.group > .grid-form { padding: 11px; }
+
+/* ---- 世界规则：分组色带 + 每一项的图标 ----
+   这一页有 189 个下拉框。参考面板（dst-admin-go 的世界设置页）给每一项配了图，
+   靠的就是"先扫形状、再读字"；纯文字的一堵墙，人只能逐行读到底才知道有没有自己要的那项。
+   图标本身不带颜色信息，颜色由分组那一档 --tile 统一给：
+   一屏十组十色，找组靠颜色、组内找项靠形状，两套线索不互相打架。 */
+details.group { border-left: 3px solid color-mix(in srgb, var(--tile, var(--page-accent)) 52%, transparent); }
+details.group > .g-head .ico-tile { color: var(--tile, var(--page-accent)); }
+.f-ico { display: inline-flex; align-items: center; justify-content: center;
+         width: 18px; height: 18px; flex: 0 0 auto;
+         color: var(--tile, var(--page-accent)); opacity: .82; }
+details.group .field > label { display: flex; align-items: center; gap: 6px; }
+
+/* ---- 显示工具类（放在文件最后，靠源码顺序压过组件自己的 display） ----
+   手机上一屏只能有一个主操作：把次要按钮和补充字段收进详情，而不是把它们
+   挤成第四第五行。hide-sm/only-sm/only-big 就是这套取舍的开关。
+
+   hide-sm 有两个断点，因为"这行放不下"有两种成因：
+   - 卡片自己窄（@container）：1440 屏上总览是两栏，左边卡片只有 ~780px，
+     一行塞得下手机塞不下的东西，但塞不下"pid + 助手在回话 + 季节 + 阶段 + 温湿度 + 四个按钮"。
+     按屏幕宽度判的话，1440 会以为自己是桌面端，于是折出一行只有按钮的孤行。
+   - 视口窄（@media 560）：手机上 hide-sm 可能出现在卡片之外，那条容器规则就够不着它了，
+     所以这里无条件再断一次。 */
+.only-sm { display: none; }
+
+@container (max-width: 820px) {
+  .hide-sm { display: none !important; }
+}
+
+@media (max-width: 560px) {
+  .hide-sm { display: none !important; }
+  .only-sm { display: flex; }
+  .only-big { display: none !important; }
+
+  /* 分片行在手机上固定两行：第一行"是谁 + 能做什么"，第二行才是世界数据。
+     光给数据行写 flex-basis:100% 不够 —— 它会把写在它后面的按钮一起顶到第三行，
+     所以这里用 order 把按钮提前。order 只活在这个断点里：DOM 顺序仍然保持
+     桌面端的读法（数据贴着状态走，按钮钉在最右）。 */
+  .shard-row > .grow { order: 1; }
+  .shard-row > .btn, .shard-row > .btn-group { order: 2; }
+  .shard-row > .row { order: 3; flex-basis: 100%; }
+  .shard-row > .shard-note { order: 4; }
+  /* 详情块必须跟着排到最后：它和上面几项同为 order 0（默认值），而 flex 是先按 order
+     再按 DOM 排——于是"点了详情"那块档案会插到按钮和「第几天」前面，把这一行切成
+     名字 / 详情 / 按钮 / 数据四截。2026-11-04 窄屏实测（390 宽）量到的就是这个。 */
+  .shard-row > .shard-detail { order: 5; }
+
+  /* 手机上分片行与卡片本身再紧一档（命中区的高度由下面 ≤900 那一块统一管）。 */
+  .shard-row { gap: 8px 8px; padding: 11px 0; }
+  .card { padding: 12px; }
+  /* 手机上步骤条只留圆点：四个名字加连线在这一档宽度会把表单挤到第二屏，
+     而"我在第几步"由右边那个计数说，"这一步是干什么的"只有当前那一步需要说。 */
+  .stepper .stp-name { display: none; }
+  .stepper .stp.on .stp-name { display: inline; }
+  .stepper .stp + .stp::before { width: 12px; margin-right: 5px; }
+  details.group > .grid-form { padding: 10px 9px; }
+}
+
+/* 触摸目标：底部导航在 ≤900 就出现了，也就是说这一档起界面就是给手指用的，
+   所以命中区的下限跟着一起提前，而不是等到 560 才放大——
+   平板竖屏 768 用 24px 的按钮点"这条说明"，和手机上点错一页一样烦。
+   省下来的那几行文字高度，全在这里赔回去。 */
+@media (max-width: 900px) {
+  .btn.sm { font-size: 12.5px; padding: 8px 12px; min-height: 40px; }
+  .theme-switch button { padding: 8px 12px; min-height: 36px; }
+  .nav-item { padding: 10px 12px; min-height: 40px; }
+  input[type="text"], input[type="number"], input[type="password"], input[type="search"],
+  select { font-size: 16px; padding: 10px; }
+  .seg button { padding: 8px 12px; min-height: 40px; }
+  /* 页面内标签（开服向导/文件与下载…）：这一排是切内容的入口，点错一个就等于
+     看了半屏不相干的东西。它原本只有下划线没有边框，撑高度要靠 min-height。 */
+  .tabs button { min-height: 40px; padding: 8px 14px; }
+  .switch { min-height: 32px; }
+  /* 链接式按钮（"重读""去总览"）没有边框，光加 padding 撑不到 40：得让它变成能接受 min-height 的盒子。 */
+  .linkish { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 8px; }
+  /* 日志页的事件汇总只有 button.chip 能点，别的 chip 是纯标签，不用一起撑高。 */
+  button.chip { min-height: 40px; }
+  /* 分页那排数字：32px 的格子在电脑上是"紧凑"，在触屏上就是点不准，
+     而点错一页比少看一页更烦。宁可让它横着滚。 */
+  .pg-btn, .pg-num { min-height: 42px; min-width: 42px; }
+  /* 说明气泡那一枚：不带字时它只有图标那么大（实测 21px），
+     而触屏上"这一点到底能不能点"全靠这一下，所以把命中区撑到 40，
+     圆角背景跟着一起变大，按下去的反馈反而更明显。带字的那一枚自然够高。 */
+  .tip-btn { min-width: 40px; min-height: 40px; align-items: center; justify-content: center; }
+  /* 上面那 40×40 把带说明气泡的那一枚名字行撑高，另两枚于是错位（实测 390 宽：说明文字顶边
+     590 / 590 / 606）。命中区不能缩回 24——那一档就是给手指用的；所以让三枚的名字行在这一档
+     都按 40 留位。写在这里而不是环那一节：它必须和上面那条同进同退。 */
+  .ring-label { min-height: 40px; }
+  /* 主操作按钮（创建房间 / 写入设定）比 .btn.sm 大一档：触屏上它们是要按准的目标。 */
+  .btn { min-height: 44px; }
+  /* 768 这一档同样不让只含 .empty 的卡被同行高卡撑出大片空白：
+     全局那条 :has() 在这里显式重申一次，免得 900 档里后加的对齐规则把它盖掉。 */
+  .card:has(> .empty):not(.ov-behaviour) { align-self: start; width: 100%; min-height: 0; }
+}
+
+/* ---- 玩家管理 ----
+   在线玩家是一张张"人卡"：头像、身份、三条状态条、动作按钮。
+   名字和 userid 都是不定长，卡片宽度由 grid 兜住，文本自己省略，
+   否则一个 17 位 Steam ID 会把整行撑出横向滚动。 */
+.players-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.players-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+.player-card { display: flex; flex-direction: column; gap: 9px; min-width: 0;
+               border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+               background: var(--card); padding: 11px; }
+.player-card:hover { border-color: var(--line); }
+.player-avatar { width: 40px; height: 40px; border-radius: 50%; flex: 0 0 auto;
+                 display: inline-flex; align-items: center; justify-content: center;
+                 color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .3px;
+                 /* 底色由角色决定（gameinfo.js 的 charStyle），这里只保证对比度。 */
+                 text-shadow: 0 1px 1px rgba(0,0,0,.25); }
+.player-avatar.sm { width: 30px; height: 30px; font-size: 12px; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-list-row { display: flex; align-items: center; gap: 8px; padding: 7px 0;
+                   border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+.player-list-row:first-child { border-top: 0; }
+.player-bars { gap: 7px; }
+
+/* 三份名单在宽屏上并排，窄屏上竖着排：三张卡本身高度不一样，
+   挤成两列会出现一张长卡旁边挂着半张空卡。 */
+.players-lists { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+
+/* 花名册在"卡片被压窄但视口还没到手机"的那一档也要切成卡片：
+   hide-sm 跟着容器宽度走，only-sm 只跟视口走，宽度 600~820 时两边都不显示，
+   整份花名册会凭空消失。这里按同一个容器断点补上卡片形态。 */
+.players-roster-cards { display: none; }
+@container (max-width: 820px) {
+  .players-roster-cards { display: flex; }
+}
+@media (max-width: 560px) {
+  /* 动作按钮各自成行时，最后两颗（踢出/拉黑）要靠右：
+     grow 在 btn-group 里只占剩余宽度，屏幕窄到放不下时会自然换行。 */
+  .player-card .btn-group { justify-content: flex-start; }
+  .player-list-row .btn { margin-left: auto; }
+  .players-roster-cards { display: flex; }
+  .players-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .players-stats .stat { padding: 8px 9px; }
+  .players-stats .stat-v { font-size: 16px; }
+  /* 三格并排时说明会被挤成三四行；数字和标签已经够读，
+     补充信息在下面的在线卡片和页面提示里都有。 */
+  .players-stats .stat-note { display: none; }
+}
+
+/* ---- 世界地图 ----
+   地形画在 canvas 上：格子数量是两万多，用 DOM 画会直接卡死。
+   画布自己处理 dragging/pinch，所以这里必须 touch-action:none，
+   否则手机上第一次拖动会被浏览器当成页面滚动。 */
+.map-page { min-width: 0; }
+/* 全屏看地图：整页换成占满视口的浮层，房间/世界切换和右侧玩家栏都还在，
+   只有 body 的滚动锁掉（画布自己会滚，不能让整页跟着抖）。
+   压在弹层(150)/Toast(200) 之下、粘顶栏(40) 与手机底栏(50) 之上。 */
+html.map-fullscreen body { overflow: hidden; }
+.map-page.map-full { position: fixed; inset: 0; z-index: 55; overflow: auto;
+                     padding: 8px; background: var(--bg); }
+/* 压在图上的浮层已经带了各自的内边距，卡片这层再留 14px 就等于把图挤小一圈：
+   手机上画布是被宽度顶住的（不是高度），不收紧就会出现"全屏还没全屏大"。 */
+.map-page.map-full .map-layout > .card { padding: 8px; }
+/* 全屏那一档里画布吃满整屏高度，读数/图例/类别筛选改成压在图上的浮层，
+   覆盖度那两行统计收起来——看图的这一刻它们不是主角，退出全屏还在。 */
+.map-page.map-full .card { position: relative; }
+.map-page.map-full .map-canvas-wrap { margin: 8px auto 0; }
+.map-page.map-full .map-readout,
+.map-page.map-full .map-key,
+.map-page.map-full .map-filter,
+.map-page.map-full .map-legend { position: absolute; border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm); padding: 7px 10px; margin: 0; font-size: 12px;
+  background: color-mix(in srgb, var(--card) 84%, transparent);
+  backdrop-filter: blur(6px); box-shadow: var(--shadow-sm); }
+.map-page.map-full .map-readout { left: 12px; right: 12px; bottom: 12px; }
+.map-page.map-full .map-key { right: 12px; top: 52px; flex-direction: column;
+                              align-items: flex-end; gap: 4px; max-width: 44%; }
+.map-page.map-full .map-filter { left: 12px; top: 52px; max-width: 44%; }
+.map-page.map-full .map-legend { left: 12px; right: 12px; bottom: 58px; max-height: 32%;
+                                 overflow: auto; }
+.map-page.map-full .map-cover, .map-page.map-full .map-cover-bar { display: none; }
+.map-layout { align-items: start; }
+.map-canvas-wrap { position: relative; width: 100%; margin-inline: auto; aspect-ratio: 1 / 1; max-height: 68vh;
+                   background: var(--elev); border: 1px solid var(--line-soft);
+                   border-radius: var(--r-sm); overflow: hidden; cursor: grab;
+                   touch-action: none; user-select: none; overscroll-behavior: contain; }
+.map-canvas-wrap:active { cursor: grabbing; }
+.map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* 内投影把地图"镶"进卡片里：canvas 是子元素，box-shadow 会被它盖住，
+   所以这层用 ::after 叠在上面，且不能吃掉指针事件（拖动全靠画布收事件）。 */
+.map-canvas-wrap::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                          border-radius: inherit; box-shadow: inset 0 0 26px rgba(0, 0, 0, .4); }
+:root[data-theme="light"] .map-canvas-wrap::after { box-shadow: inset 0 0 22px rgba(24, 32, 46, .14); }
+.map-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+               background: color-mix(in srgb, var(--card) 55%, transparent);
+               backdrop-filter: blur(1px); text-align: center; font-size: 13px; }
+.map-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line);
+            border-top-color: var(--accent); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.map-tools { gap: 4px; }
+.map-tools .btn { min-width: 32px; }
+
+/* 读格子：一行说清"哪一格、什么地形、上面有什么"。 */
+.map-readout { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+               min-height: 34px; padding: 8px 2px 0; font-size: 12.5px; }
+.map-readout-name { font-size: 13px; }
+.map-readout .player-avatar { width: 24px; height: 24px; font-size: 12px; }
+
+/* 形状图例：建筑方块、资源圆点、危险三角、玩家圆环。
+   和 canvas 里画的是同一套形状，读图例就是在读图。 */
+.map-key { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap;
+           margin-top: 8px; padding-top: 9px; border-top: 1px solid var(--line-soft);
+           font-size: 12px; color: var(--text-2); }
+.map-key-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.map-key-sep { width: 1px; height: 14px; background: var(--line); }
+.mki { width: 10px; height: 10px; display: inline-block; flex: 0 0 auto; }
+.mki.build { background: var(--warn); border-radius: 2px; }
+.mki.res { background: var(--info); border-radius: 50%; }
+.mki.danger { background: var(--bad); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.mki.companion { background: var(--map-companion); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+/* 玩家点按角色着色（和总览/玩家管理页的头像同一套色），图例就不能画成单个蓝色点：
+   图例说蓝色、地图上一堆别的颜色，等于自己打自己的脸。这里用一圈色环表示"颜色看角色"。 */
+.mki.player { border-radius: 50%; background: conic-gradient(from 210deg, #4c8dff, #57c7e6, #3ecf8e, #f2a54c, #ff6b6b, #4c8dff);
+              box-shadow: 0 0 0 2px #fff, inset 0 0 0 1px rgba(0, 0, 0, .22); }
+.mki.dead { border-radius: 50%; background: #8a8f99; box-shadow: 0 0 0 2px #fff; }
+
+/* 结论行 + 占比条：先说"这张图以什么为主"，再用一条分段把比例画出来。
+   颜色取自画布同一套色板（palette 计算属性），所以条上的分段和地图上的色块一一对应。 */
+.map-cover { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+             margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line-soft);
+             font-size: 12.5px; }
+.map-cover-note { color: var(--text); font-weight: 600; }
+.map-cover-bar { display: flex; height: 9px; margin-top: 7px; border-radius: 5px; overflow: hidden;
+                 background: var(--elev); box-shadow: inset 0 0 0 1px var(--line-soft); }
+.map-cover-bar .mcs { display: block; flex-basis: 0; min-width: 2px; }
+.map-cover-bar .mcs + .mcs { border-left: 1px solid var(--card); }
+
+/* 地形图例：色块 + 中文名 + 格子数 + 占比。占比用小于号的那一档（<1%）
+   是给"大片海水里的一小块路"这种会被四舍五入成 0% 的组留的，不然一行 0% 像没数据。 */
+.map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 9px;
+              font-size: 12px; color: var(--text-2); }
+.map-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.mli { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto;
+       border: 1px solid rgba(255, 255, 255, .12); }
+/* 浅色主题里地形色本来就淡（蛛网接近白），白色描边等于没有描边，色块会糊进卡片背景。 */
+:root[data-theme="light"] .mli { border-color: rgba(24, 32, 46, .16); }
+.map-legend-item .num { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+.map-legend-item .hint { font-size: 12px; }
+
+/* 高倍率下的类别筛选条。只在画个体图标时出现——低倍率是聚合层，筛掉一类
+   只会让"这格有 12 个"变成"这格有 9 个"，那种数字没人看得懂。 */
+.map-filter { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.map-filter-label { font-size: 12px; color: var(--text-3); }
+.chipbtn { font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+           color: var(--text-2); background: var(--elev); box-shadow: inset 0 0 0 1px var(--line-soft); }
+.chipbtn.off { color: var(--text-3); background: transparent; box-shadow: inset 0 0 0 1px var(--line);
+               text-decoration: line-through; opacity: .72; }
+/* .on 是"这一档被点亮了"（模组配置页的「只看有问题」），和上面 .off 那套
+   "默认开着、点一下划掉"的地图图层反着来；选中态用主题色实心，和 .mod-cat.on 同一档。 */
+.chipbtn.on { color: #fff; font-weight: 600; background: var(--page-accent);
+              box-shadow: inset 0 0 0 1px var(--page-accent); }
+
+.map-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+@media (max-width: 560px) {
+  /* 窄屏靠宽度撑，68vh 的高度上限会把地图压成一小块，所以这里的比例锁要让位。 */
+  .map-canvas-wrap { max-height: none; max-width: none !important; }
+  /* 缩放按钮里只有一个"−"，min-height 撑不出宽度，两个维度都得钉到 40。
+     注意这条必须比上面 .btn.sm 的 40 更晚出现才压得住它 —— 早先写 36 时，
+     手机上这排按钮实测 37px，正好卡在"能点到但常点错"的那一档。 */
+  .map-tools .btn.sm { min-height: 40px; min-width: 40px; }
+  .map-key { gap: 6px 10px; }
+  .map-stats .stat { padding: 8px 9px; }
+  .map-stats .stat-v { font-size: 16px; }
+  .map-legend { gap: 5px 12px; }
+  .map-legend-item .hint { display: none; }
+}
+
+/* ---- 后续视图要用的样式钩子（只加 CSS，不依赖 JS 之外的结构） ----
+   这几个类名前端稍后会挂，彼此独立：单独放到页面上就能成形，
+   颜色一律取 --变量，深浅两套主题都读得清。 */
+
+/* 危险操作单独成组：和左边主要按钮之间留一道竖分隔 + 空隙，整组靠右。
+   放在 .row / .btn-group 这类 flex 行里用，没有父级时自己也是 flex 行。 */
+.actions-danger {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-left: auto; padding-left: 14px; border-left: 1px solid var(--line);
+}
+/* 窄屏整组换到第二行：分隔线改成上边，靠右仍然成立。 */
+@media (max-width: 560px) {
+  .actions-danger { flex-basis: 100%; justify-content: flex-end;
+                    margin-left: 0; padding-left: 0; padding-top: 10px;
+                    border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* 全程同一个人数时图照常画，这一句只补结论（2026-11-09 用户："图怎么没有了？"）。
+   以前用一整块虚线摘要把 180px 的图场换掉，读者只看到"一直是 3 人"，
+   反倒不知道这段时间是不是根本没采到数。现在平线 + 面积 + 0 起点刻度都在，
+   说明条只占一行，字号 12.5px、正文色走 --text-2，深浅主题都够对比。 */
+.spark-flat-note {
+  margin-top: 8px; padding: 6px 10px; border-left: 2px solid var(--page-accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0; background: var(--card-2);
+  font-size: 12.5px; line-height: 1.5; color: var(--text-2);
+}
+.spark-flat-note b { color: var(--text); }
+
+/* 通知中心：右侧抽屉 + 一列条目，抽屉 fixed、列表自己滚。 */
+.notice-center {
+  position: fixed; inset: 0 0 0 auto; z-index: 170;
+  width: min(360px, 100vw); display: flex; flex-direction: column;
+  background: var(--elev); border-left: 1px solid var(--line);
+  box-shadow: var(--sh-3); color: var(--text);
+}
+.notice-center .nc-head { display: flex; align-items: center; justify-content: space-between;
+                          gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.notice-center .nc-head h3 { font-size: var(--t-lg); }
+.notice-center .nc-list { flex: 1 1 auto; overflow: auto; padding: 8px;
+                          display: flex; flex-direction: column; gap: 8px; }
+.notice-center .nc-item { padding: 10px 12px; border: 1px solid var(--line-soft);
+                          border-radius: var(--r-sm); background: var(--card);
+                          font-size: 13px; color: var(--text-2); }
+.notice-center .nc-item .nc-t { font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.notice-center .nc-time { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); }
+.notice-center .nc-empty { text-align: center; padding: 24px 12px; color: var(--text-2); }
+
+/* SSE 断线提示条：贴在内容顶部的一整行，警戒色只用在左边框和图标，
+   正文取 --text，深浅主题都够对比。 */
+.reconnect-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 42%, var(--line));
+  border-left: 3px solid var(--warn); border-radius: var(--r-sm);
+  background: var(--warn-soft); color: var(--text); font-size: 13px;
+}
+.reconnect-banner .ic { color: var(--warn); flex: 0 0 auto; }
+.reconnect-banner .btn { margin-left: auto; }
+
+/* 字段级错误文字：贴在输入框下面，和 .field .hint 同一处，语义红且 ≥12px。
+   --bad 在浅色白卡上只有 4.45（差 0.05），混一点 --text：浅色被压深到 5.79、
+   深色被提亮到 8.00，两套主题都过 4.5 又不脱离语义红。 */
+.field-error { display: flex; align-items: center; gap: 5px;
+               font-size: 12px; line-height: 1.45;
+               color: color-mix(in srgb, var(--bad) 82%, var(--text)); }
+.field:has(.field-error) input, .field:has(.field-error) select,
+.field:has(.field-error) textarea { border-color: var(--bad); }
+
+/* 按钮进行中：压暗、禁指针，不改布局；图标跟着转。 */
+.busy, button.busy:disabled, .btn.busy { opacity: .6; pointer-events: none; cursor: progress; }
+.busy .ic { animation: spin .9s linear infinite; }
+
+/* 短时撤销条：浮在底部居中，文字 + 一枚撤销按钮。 */
+.undo-bar {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 195;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  max-width: min(520px, calc(100vw - 24px)); padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--elev); box-shadow: var(--sh-3);
+  color: var(--text); font-size: 13px;
+}
+.undo-bar .btn { margin-left: auto; }
+
+/* 会话过期时登录层浮在已有内容之上，而不是把整页换掉：
+   底下的 .shell 仍在 DOM 里，填了一半的向导不会被销毁。 */
+.login-overlay { position: fixed; inset: 0; z-index: 160; overflow: auto;
+                 background: var(--bg); }
+.login-overlay .login { min-height: 100%; }
+
+/* 顶栏「待办」入口：别的页不再在正文顶部铺摘要行和展开清单（2026-11-09 第二轮，
+   用户："总览页面，下一步的卡片已经展示了这些信息……看上去很丑"）。
+   第四轮用户："我还是希望能显示数字，他的口径和卡片栏里的待办一致即可"——
+   于是数字直接取 checklistRows 的长度，与总览「下一步」卡头那枚同一个数；
+   这枚沿用 .gauge 的圆形底 + .warn 的语义色，明细放悬停。 */
+.gauge.todo .ic { color: var(--warn); }
+/* 390px 那一档顶栏原本就塞到刚好：多一枚入口会把长标题压成「开…」、
+   最后一枚图标按钮推出视口。手机上把它收进「更多」抽屉，顶栏恢复原状。 */
+@media (max-width: 560px) {
+  .gauge.todo { display: none; }
+}
+.sheet-todo { display: flex; align-items: center; gap: 8px; width: 100%;
+              padding: 10px 12px; border-radius: var(--r-sm);
+              border: 1px solid color-mix(in srgb, var(--warn) 34%, var(--line));
+              background: var(--warn-soft); color: var(--text);
+              font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.sheet-todo .ic { color: var(--warn); flex: none; }
+
+/* ---- 总览「下一步」那张卡的行 ----
+   三段式（图标 / 说明 / 动作）就是 .step-row 的形状，这里只补两枚附属件：
+   分类小徽标、以及"就在这一页 / 需要管理员处理"那句尾巴。按钮与尾巴占同一格，
+   所以目标页不同或角色不同时，不会忽然长出第二种样式的提醒。 */
+.step-tag { flex: 0 0 auto; padding: 1px 7px; border-radius: 999px; font-size: 12px;
+            color: var(--warn); background: var(--warn-soft);
+            border: 1px solid color-mix(in srgb, var(--warn) 34%, transparent); }
+.step-tail { flex: 0 1 auto; margin-left: auto; font-size: 12px; line-height: 1.5; color: var(--text-3); }
+/* 计数不用 .chip：验收脚本按 .card-head .chip 的第一枚读「核对于 …」，
+   插到它前面会把那句判据读成待办数。换个类名，形状照旧。 */
+.head-count { display: inline-flex; align-items: center; font-size: 12px; padding: 2px 8px;
+              border-radius: 999px; background: var(--card-2);
+              border: 1px solid var(--line-soft); color: var(--text-2); white-space: nowrap; }
+/* 从别页「去下一步」跳过来时闪一下，2.6 秒后 JS 把类撤掉。 */
+@keyframes steps-focus {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  25% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 45%, transparent); }
+}
+.next-steps.focus-flash { animation: steps-focus 2.4s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .next-steps.focus-flash { animation: none; border-color: var(--warn); }
+}
+@media (max-width: 560px) {
+  .step-tail { flex-basis: 100%; text-align: right; }
+}

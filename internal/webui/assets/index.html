@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>饥荒联机版 服务器面板</title>
+<!-- 图标是手画的 SVG，直接内联成 data URI：不多一个请求，也不会跟着主题变成一片白。
+     一根火苗 + 一道蓝芯 + 一块地基，对应"活下来"和"这台机器上的世界"。 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='bg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23151b26'/><stop offset='1' stop-color='%231f2836'/></linearGradient><linearGradient id='fl' x1='0' y1='1' x2='0' y2='0'><stop offset='0' stop-color='%23ff7a52'/><stop offset='1' stop-color='%23f0cf5e'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23bg)'/><path d='M16 4.6c3.6 4.3 6.5 6.6 6.5 10.9A6.5 6.5 0 0 1 9.5 15.5c0-4.3 2.9-6.6 6.5-10.9z' fill='url(%23fl)'/><path d='M16 11.4c1.7 2.1 2.9 3.3 2.9 5.3a2.9 2.9 0 1 1-5.8 0c0-2 1.2-3.2 2.9-5.3z' fill='%234fd3ff'/><rect x='7.5' y='24' width='17' height='2.6' rx='1.3' fill='%238fa6c8' opacity='.55'/></svg>">
+<link rel="stylesheet" href="/app.css">
+<!--
+  免构建前端：vendor 那份 Vue3 global 构建带模板编译器，所以组件的 template
+  可以写成字符串，不需要 npm。它是固定版本的第三方文件，长缓存（见 webui.go）。
+  这里不用 defer/async：普通 <script> 会在 <script type=module> 之前执行完，
+  所以 app.js 里直接拿 window.Vue 一定是有的。
+-->
+<script src="/vendor/vue.global.prod.js"></script>
+</head>
+<body>
+<!--
+  #boot 是 Vue 挂载前的骨架：面板可能装在一台刚开机的机器上，
+  首屏从请求到渲染有几百毫秒，留一片纯白会让人以为界面坏了。
+  Vue 挂载后这个节点会被替换掉。
+-->
+<div id="app">
+  <div class="boot">
+    <div class="boot-bar"><span class="boot-dot"></span>饥荒联机版 服务器面板</div>
+    <div>
+      <div class="boot-line" style="width: 42%"></div>
+      <div class="boot-line" style="width: 68%"></div>
+      <div class="boot-line" style="width: 30%"></div>
+      <p class="boot-note">正在读取房间与世界状态…… 界面是内嵌在面板程序里的，如果这一步卡住，说明接口没通。</p>
+    </div>
+  </div>
+</div>
+<noscript>
+  <div class="noscript">这个面板的界面需要 JavaScript：它的所有数据都走 <code>/api/v1/</code> 接口，
+  没有服务端渲染的页面。如果你只是想调接口，直接用 curl 带管理员账号访问即可。</div>
+</noscript>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

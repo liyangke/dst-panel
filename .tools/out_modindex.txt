@@ -1,0 +1,238 @@
+------------------------ scripts/modindex.lua 88-120
+  88| 	if BRANCH ~= "release" then
+  89| 		name = name .. "_"..BRANCH
+  90| 	end
+  91| 	if self:GetModInfo(modname) and not self:GetModInfo(modname).client_only_mod and client_config then
+  92| 		name = name .. "_CLIENT"
+  93| 	end
+  94| 	return name
+  95| end
+  96| 
+  97| function ModIndex:BeginStartupSequence(callback)
+  98| 	self.startingup = true
+  99| 
+ 100| 	if TheNet:IsDedicated() then
+ 101| 		print("ModIndex: Beginning normal load sequence for dedicated server.\n")
+ 102| 		self:DisableAllMods() --We assume the mods will be re-enabled by the modoverrides.lua file
+ 103| 		callback()
+ 104| 	else
+ 105| 		local filename = "boot_"..self:GetModIndexName()
+ 106| 		TheSim:GetPersistentString(filename,
+ 107| 			function(load_success, str)
+ 108| 				if load_success and str == "loading" then
+ 109| 					local modsenabled = self:GetModsToLoad()
+ 110| 					if #modsenabled > 0 then
+ 111| 						self.badload = true
+ 112| 						print("ModIndex: Detected bad load, disabling all mods.")
+ 113| 						self:DisableAllMods()
+ 114| 						self:Save(nil) -- write to disk that all mods were disabled!
+ 115| 					end
+ 116| 					callback()
+ 117| 				else
+ 118| 					print("ModIndex: Beginning normal load sequence.\n")
+ 119| 					SavePersistentString(filename, self.modsettings.disablemods and "loading" or "done", false, callback)
+ 120| 				end
+------------------------ scripts/modindex.lua 255-340
+ 255| end
+ 256| 
+ 257| function ModIndex:GetForceEnabledMods()
+ 258| 	local moddirs = {}
+ 259| 	for name in pairs(self.modsettings.forceenable) do
+ 260| 		if (IsWorkshopMod(name)) then
+ 261| 			table.insert(moddirs, name)
+ 262| 		else
+ 263| 			if tonumber(name) then
+ 264| 				table.insert(moddirs, "workshop-"..name)
+ 265| 			else
+ 266| 				table.insert(moddirs, name)
+ 267| 			end
+ 268| 		end
+ 269| 	end
+ 270| 	return moddirs
+ 271| end
+ 272| 
+ 273| function ModIndex:GetModsToLoad(usecached)
+ 274| 	local cached = usecached or false
+ 275| 
+ 276| 	local ret = {}
+ 277| 	if not cached then
+ 278| 		local moddirs = TheSim:GetModDirectoryNames()
+ 279| 		local mods_to_load = {}
+ 280| 		for i,moddir in ipairs(moddirs) do
+ 281| 			if ((self:IsModEnabled(moddir) or self:IsModForceEnabled(moddir) or self:IsModTempEnabled(moddir) ) and not self:IsModTempDisabled(moddir)) and not mods_to_load[moddir] then
+ 282| 				print("ModIndex:GetModsToLoad inserting moddir, ", moddir)
+ 283| 				mods_to_load[moddir] = true
+ 284| 				table.insert(ret, moddir)
+ 285| 			end
+ 286| 		end
+ 287| 		for i, moddir in ipairs(self:GetTempEnabledMods()) do
+ 288| 			if not table.contains(moddirs, moddir) then
+ 289| 				self.forceddirs[moddir] = true
+ 290| 			end
+ 291| 		end
+ 292| 		for i, moddir in ipairs(self:GetForceEnabledMods()) do
+ 293| 			if not table.contains(moddirs, moddir) then
+ 294| 				self.forceddirs[moddir] = true
+ 295| 			end
+ 296| 		end
+ 297| 		for moddir in pairs(self.forceddirs) do
+ 298| 			if ((self:IsModEnabled(moddir) or self:IsModForceEnabled(moddir) or self:IsModTempEnabled(moddir) ) and not self:IsModTempDisabled(moddir)) and not mods_to_load[moddir] then
+ 299| 				print("ModIndex:GetModsToLoad inserting forcedmoddir, ", moddir)
+ 300| 				mods_to_load[moddir] = true
+ 301| 				table.insert(ret, moddir)
+ 302| 			end
+ 303| 		end
+ 304| 	else
+ 305| 		if self.savedata and self.savedata.known_mods then
+ 306| 			for modname, moddata in pairs(self.savedata.known_mods) do
+ 307| 				if (self:IsModEnabled(modname) or self:IsModForceEnabled(modname) or self:IsModTempEnabled(modname) ) and not self:IsModTempDisabled(modname) then
+ 308| 					print("ModIndex:GetModsToLoad inserting modname, ", modname)
+ 309| 					table.insert(ret, modname)
+ 310| 				end
+ 311| 			end
+ 312| 		end
+ 313| 	end
+ 314| 	for i,modname in ipairs(ret) do
+ 315| 		if self:IsModStandalone(modname) then
+ 316| 			print("\n\n"..ModInfoname(modname).." Loading a standalone mod! No other mods will be loaded.\n")
+ 317| 			return { modname }
+ 318| 		end
+ 319| 	end
+ 320| 	return ret
+ 321| end
+ 322| 
+ 323| function ModIndex:GetModInfo(modname)
+ 324| 	if self.savedata.known_mods[modname] then
+ 325| 		return self.savedata.known_mods[modname].modinfo or {}
+ 326| 	else
+ 327| 		modprint("unknown mod " .. tostring(modname))
+ 328| 		return nil
+ 329| 	end
+ 330| end
+ 331| 
+ 332| function ModIndex:UpdateModInfo()
+ 333| 	modprint("Updating all mod info.")
+ 334| 
+ 335| 	local modnames = TheSim:GetModDirectoryNames()
+ 336| 
+ 337| 	for modname,moddata in pairs(self.savedata.known_mods) do
+ 338| 		if not table.contains(modnames, modname) and not self.forceddirs[modname] then
+ 339| 			if moddata.temp_enabled then
+ 340| 				if not self.savedata.known_mods[modname] then
+------------------------ scripts/modindex.lua 360-475
+ 360| 		end
+ 361| 		self.savedata.known_mods[modname].modinfo = self:LoadModInfo(modname, self.savedata.known_mods[modname].modinfo)
+ 362| 	end
+ 363| end
+ 364| 
+ 365| function ModIndex:UpdateSingleModInfo(modname)
+ 366| 	if not self.savedata.known_mods[modname] then
+ 367| 		self.savedata.known_mods[modname] = {}
+ 368| 	end
+ 369| 	self.savedata.known_mods[modname].modinfo = self:LoadModInfo(modname, self.savedata.known_mods[modname].modinfo)
+ 370| end
+ 371| 
+ 372| function ModIndex:LoadModOverides(shardGameIndex)
+ 373| 	if TheNet:GetIsClient() then
+ 374| 		return {}
+ 375| 	end
+ 376| 
+ 377|     local overrides = {}
+ 378|     local filename = "../modoverrides.lua"
+ 379| 
+ 380|     local function onload(load_success, str)
+ 381|         if load_success == true then
+ 382|             local fn, message = loadstring(str)
+ 383|             if fn ~= nil then
+ 384|                 local env = {}
+ 385|                 local success, r = RunInEnvironment(fn, env)
+ 386| 				if success and type(r) == "table" then
+ 387| 					print("SUCCESS: Loaded modoverrides.lua")
+ 388|                     overrides = r
+ 389|                 else
+ 390|                     print("ERROR: Failed to run code from modoverrides.lua")
+ 391|                 end
+ 392|             else
+ 393|                 print("ERROR: Failed to load modoverrides.lua")
+ 394|             end
+ 395|         end
+ 396|     end
+ 397| 
+ 398| 	--ShardGameIndex isn't loaded yet, load a temp one for this test...
+ 399| 	shardGameIndex = shardGameIndex or ShardGameIndex
+ 400| 	if not shardGameIndex then
+ 401| 		require("shardindex")
+ 402| 		shardGameIndex = ShardIndex()
+ 403| 		shardGameIndex:Load()
+ 404| 	end
+ 405|     if not TheNet:IsDedicated() and shardGameIndex:IsValid() and not shardGameIndex:GetServerData().use_legacy_session_path then
+ 406|         TheSim:GetPersistentStringInClusterSlot(shardGameIndex:GetSlot(), "Master", filename, onload)
+ 407|     else
+ 408|         TheSim:GetPersistentString(filename, onload)
+ 409|     end
+ 410| 
+ 411|     return overrides
+ 412| end
+ 413| 
+ 414| 
+ 415| function ModIndex:TryLoadMod(modname)
+ 416| 	if self.savedata.known_mods[modname] then return true end
+ 417| 	if kleifileexists(MODS_ROOT..modname.."/modinfo.lua") then
+ 418| 		self.forceddirs[modname] = true
+ 419| 		self:UpdateSingleModInfo(modname)
+ 420| 		return true
+ 421| 	end
+ 422| 	return false
+ 423| end
+ 424| 
+ 425| function ModIndex:ApplyEnabledOverrides(mod_overrides) --Note(Peter): This function is now coupled with the format written by ShardSaveIndex:SetSlotEnabledServerMods
+ 426| 	if mod_overrides == nil then
+ 427| 		print("Warning: modoverrides.lua is empty, or is failing to return a table.")
+ 428| 	else
+ 429| 		--Enable mods that are being forced on in the modoverrides.lua file
+ 430| 		--print("ModIndex:ApplyEnabledOverrides for mods" )
+ 431| 		for modname,env in pairs(mod_overrides) do
+ 432| 			if modname == "client_mods_disabled" then
+ 433| 				self:DisableClientMods( env ) --env is a bool in this case
+ 434| 			else
+ 435| 				if env.enabled ~= nil then
+ 436| 					if not self:TryLoadMod(modname) then
+ 437| 						self:TryLoadMod(workshop_prefix..modname)
+ 438| 					end
+ 439| 					local actual_modname = ResolveModname(modname)
+ 440| 					if actual_modname ~= nil then
+ 441| 						if env.enabled then
+ 442| 							print( "modoverrides.lua enabling " .. actual_modname )
+ 443| 							self:Enable(actual_modname)
+ 444| 						else
+ 445| 							self:Disable(actual_modname)
+ 446| 						end
+ 447| 					end
+ 448| 				end
+ 449| 			end
+ 450| 		end
+ 451| 	end
+ 452| end
+ 453| 
+ 454| function ModIndex:ApplyConfigOptionOverrides(mod_overrides)
+ 455| 	--print("ModIndex:ApplyConfigOptionOverrides for mods" )
+ 456| 	for modname,env in pairs(mod_overrides) do
+ 457| 		if modname == "client_mods_disabled" then
+ 458| 			--Do nothing here for this entry
+ 459| 		else
+ 460| 			if env.configuration_options ~= nil then
+ 461| 				local actual_modname = ResolveModname(modname)
+ 462| 				if actual_modname ~= nil then
+ 463| 					print( "applying configuration_options from modoverrides.lua to mod " .. actual_modname )
+ 464| 
+ 465| 					local force_local_options = true
+ 466| 					local config_options = self:GetModConfigurationOptions_Internal(actual_modname,force_local_options)
+ 467| 
+ 468| 					if config_options and type(config_options) == "table" then
+ 469| 						for option,override in pairs(env.configuration_options) do
+ 470| 							for _,config_option in pairs(config_options) do
+ 471| 			  					if config_option.name == option then
+ 472| 			  						print( "Overriding mod " .. actual_modname .. "'s option " .. option .. " with value " .. tostring(override) )
+ 473| 			  						config_option.saved = override
+ 474| 			  					end
+ 475| 							end

@@ -1,0 +1,42 @@
+# ---- 本地运行快照与产物（几百 MB，绝不入库）----
+# 本机 Klei 存档快照 + 面板数据库 + 验收夹具
+.tmp_boot/
+# 本地编译出来的二进制
+.tmp_bin/
+# UI 调试中间产物
+.tmp_ui/
+# 其余以 .tmp_ 开头的临时文件
+.tmp_*
+
+# ---- 工具脚本的临时产物 ----
+# 截图、量测 JSON、画廊产物
+.tools/tmp/
+.tools/__pycache__/
+__pycache__/
+*.pyc
+
+# ---- 一次性验收截图与日志 ----
+.tools/*.png
+.tools/*.log
+.tools/*.out
+
+# ---- WorkBuddy 项目记忆 ----
+# 里面记着服务器地址、SSH 别名、面板登录凭据等内部信息；
+# 这个仓库是公开的，不跟着代码一起走。
+.workbuddy/
+
+# ---- Qoder Sites 部署元数据（与本仓库无关）----
+.dstpanel-shots.qoder.site
+
+# ---- 带密码的本地配置与运行数据 ----
+cfg.yaml
+*.cfg.yaml
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ---- 编译产物 ----
+/dstpanel
+/dstpanel-linux
+*.exe

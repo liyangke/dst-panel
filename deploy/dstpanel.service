@@ -1,0 +1,30 @@
+# DST 面板 systemd 单元模板。占位符由 deploy/install.sh 替换，不要直接 systemctl start 它。
+#
+# 为什么用模板而不是写死一个用户：面板必须和它管理的东西待在同一条路径约定里
+# （见 internal/config/config.go 的"运行用户的 HOME 就是业务根目录"），
+# 而这条路径在每台机器上都不一样，写死就等于每台机器都要手改一遍还容易改漏。
+[Unit]
+Description=DST 面板（饥荒联机版服务器管理）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__DST_USER__
+Group=__DST_GROUP__
+# 显式钉死 HOME：分片由面板通过 screen 拉起，引擎只认运行用户的 ~/.klei 找存档，
+# 一旦这里的 HOME 和配置里 kleiRoot 的父目录不一致，症状是"面板改了半天配置，
+# 开服用的却是另一个世界"，而且全程没有报错。
+Environment=HOME=__DST_ROOT__
+WorkingDirectory=__DST_ROOT__/panel
+ExecStart=__DST_BIN__ -config __DST_CONF__
+Restart=on-failure
+RestartSec=3
+# 只杀面板自己。分片跑在独立的 screen 会话里，属于别的进程：
+# 控制面板不该能顺手把运行中的世界一起端掉（重启面板、升级面板都是常态操作）。
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
